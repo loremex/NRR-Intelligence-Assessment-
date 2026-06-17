@@ -9,24 +9,27 @@ import {
   type ReactNode,
   type Dispatch,
 } from 'react'
+import type { NRRMode } from './nrr'
 
-const STORAGE_KEY = 'loremex_assessment_state_v2'
+const STORAGE_KEY = 'loremex_assessment_state_v3'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type NRRField = 'startingMRR' | 'expansionPct' | 'contractionPct' | 'churnPct'
+export type { NRRMode }
+export type NRRField = 'startingMRR' | 'expansion' | 'contraction' | 'churn'
 export type ActionCapKey = 'retention' | 'expansion' | 'pricing'
 export type CapKey = 'measurement' | ActionCapKey
 
 export interface NRRInputs {
-  startingMRR?: number | null
-  expansionPct: number | null
-  contractionPct: number | null
-  churnPct: number | null
+  mode: NRRMode
+  startingMRR: number | null
+  expansion: number | null
+  contraction: number | null
+  churn: number | null
 }
 
 export interface AssessmentState {
-  schemaVersion: 2
+  schemaVersion: 3
   sessionId: string | null
   contactId: string | null
   email: string | null
@@ -48,6 +51,7 @@ export type AssessmentAction =
   | { type: 'SET_SESSION'; sessionId: string; contactId: string | null }
   | { type: 'SET_EMAIL'; email: string; consent: boolean }
   | { type: 'SET_NRR_INPUT'; field: NRRField; value: number | null }
+  | { type: 'SET_NRR_MODE'; mode: NRRMode }
   | { type: 'SKIP_NRR_CALCULATOR' }
   | { type: 'RESET_NRR_CALCULATOR' }
   | { type: 'SET_SELECTED_CAPABILITIES'; capabilities: CapKey[] }
@@ -60,7 +64,7 @@ export type AssessmentAction =
 // ─── Default state ────────────────────────────────────────────────────────────
 
 export const defaultState: AssessmentState = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   sessionId: null,
   contactId: null,
   email: null,
@@ -92,11 +96,25 @@ export function assessmentReducer(state: AssessmentState, action: AssessmentActi
       return {
         ...state,
         nrrInputs: {
-          expansionPct: null,
-          contractionPct: null,
-          churnPct: null,
-          ...state.nrrInputs,
+          mode: 'dollars',
+          startingMRR: null,
+          expansion: null,
+          contraction: null,
+          churn: null,
+          ...(state.nrrInputs ?? {}),
           [action.field]: action.value,
+        },
+      }
+
+    case 'SET_NRR_MODE':
+      return {
+        ...state,
+        nrrInputs: {
+          mode: action.mode,
+          startingMRR: state.nrrInputs?.startingMRR ?? null,
+          expansion: null,
+          contraction: null,
+          churn: null,
         },
       }
 
@@ -154,8 +172,8 @@ export function loadFromStorage(): AssessmentState {
     if (!raw) return defaultState
     const parsed = JSON.parse(raw) as Partial<AssessmentState>
     // Reject any stored state with a mismatched schema version
-    if (parsed.schemaVersion !== 2) return defaultState
-    return { ...defaultState, ...parsed, schemaVersion: 2 }
+    if (parsed.schemaVersion !== 3) return defaultState
+    return { ...defaultState, ...parsed, schemaVersion: 3 }
   } catch {
     return defaultState
   }

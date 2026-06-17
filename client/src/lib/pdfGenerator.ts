@@ -53,7 +53,8 @@ export interface PDFParams {
   generatedAt: string
   nrr: number | null
   grr: number | null
-  netMovement: number | null
+  netMovementDollars: number | null
+  netMovementPct: number | null
   reportingMaturity: number | null
   overallIntelligence: number | null
   distanceToL5: number | null
@@ -169,13 +170,17 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   y += 24
 
   // Net Movement + disclaimer (only when NRR was calculated)
-  if (params.netMovement !== null) {
-    const nm = params.netMovement
-    const nmStr = nm > 0 ? `+${(nm * 100).toFixed(1)}%` : `${(nm * 100).toFixed(1)}%`
+  if (params.netMovementDollars !== null && params.netMovementPct !== null) {
+    const d = params.netMovementDollars
+    const p = params.netMovementPct
+    const dSign = d >= 0 ? '+' : ''
+    const pSign = p >= 0 ? '+' : ''
+    const dStr = `${dSign}$${Math.abs(d).toLocaleString('en-US')}`
+    const pStr = `${pSign}${(p * 100).toFixed(1)}%`
     doc.setFontSize(7.5)
     doc.setTextColor(...GRAY)
     doc.text(
-      `Net Movement: ${nmStr}  ·  NRR figures based on quarterly percentages entered by user`,
+      `Net Movement: ${dStr} (${pStr})  ·  Based on quarterly figures entered by user`,
       14,
       y,
     )

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { assessmentReducer, defaultState, loadFromStorage, type CapKey } from './state'
 
-const STORAGE_KEY = 'loremex_assessment_state_v2'
+const STORAGE_KEY = 'loremex_assessment_state_v3'
 
 describe('assessmentReducer', () => {
   it('default state has correct shape', () => {
-    expect(defaultState.schemaVersion).toBe(2)
+    expect(defaultState.schemaVersion).toBe(3)
     expect(defaultState.email).toBeNull()
     expect(defaultState.sessionId).toBeNull()
     expect(defaultState.selectedCapabilities).toEqual([])
@@ -21,7 +21,7 @@ describe('assessmentReducer', () => {
     })
     expect(state.email).toBe('test@example.com')
     expect(state.consent).toBe(true)
-    expect(state.sessionId).toBeNull() // other fields untouched
+    expect(state.sessionId).toBeNull()
   })
 
   it('SET_SESSION updates sessionId and contactId only', () => {
@@ -37,39 +37,62 @@ describe('assessmentReducer', () => {
     })
     expect(state.sessionId).toBe('sess-abc')
     expect(state.contactId).toBe('hs-123')
-    expect(state.email).toBe('x@x.com') // preserved
+    expect(state.email).toBe('x@x.com')
   })
 
-  it('SET_NRR_INPUT initialises nrrInputs and sets field', () => {
+  it('SET_NRR_INPUT initialises nrrInputs in dollars mode by default', () => {
     const state = assessmentReducer(defaultState, {
       type: 'SET_NRR_INPUT',
-      field: 'expansionPct',
-      value: 18,
+      field: 'startingMRR',
+      value: 1_000_000,
     })
-    expect(state.nrrInputs?.expansionPct).toBe(18)
-    expect(state.nrrInputs?.contractionPct).toBeNull()
+    expect(state.nrrInputs?.mode).toBe('dollars')
+    expect(state.nrrInputs?.startingMRR).toBe(1_000_000)
+    expect(state.nrrInputs?.expansion).toBeNull()
   })
 
   it('SET_NRR_INPUT merges into existing nrrInputs', () => {
     const s1 = assessmentReducer(defaultState, {
       type: 'SET_NRR_INPUT',
-      field: 'expansionPct',
-      value: 18,
+      field: 'startingMRR',
+      value: 1_000_000,
     })
     const s2 = assessmentReducer(s1, {
       type: 'SET_NRR_INPUT',
-      field: 'churnPct',
-      value: 6,
+      field: 'expansion',
+      value: 180_000,
     })
-    expect(s2.nrrInputs?.expansionPct).toBe(18)
-    expect(s2.nrrInputs?.churnPct).toBe(6)
+    expect(s2.nrrInputs?.startingMRR).toBe(1_000_000)
+    expect(s2.nrrInputs?.expansion).toBe(180_000)
+  })
+
+  it('SET_NRR_MODE switches mode and clears component values, keeps startingMRR', () => {
+    const withDollarData = assessmentReducer(defaultState, {
+      type: 'SET_NRR_INPUT',
+      field: 'startingMRR',
+      value: 1_000_000,
+    })
+    const withExpansion = assessmentReducer(withDollarData, {
+      type: 'SET_NRR_INPUT',
+      field: 'expansion',
+      value: 180_000,
+    })
+    const switched = assessmentReducer(withExpansion, {
+      type: 'SET_NRR_MODE',
+      mode: 'percentages',
+    })
+    expect(switched.nrrInputs?.mode).toBe('percentages')
+    expect(switched.nrrInputs?.startingMRR).toBe(1_000_000) // preserved
+    expect(switched.nrrInputs?.expansion).toBeNull()        // cleared
+    expect(switched.nrrInputs?.contraction).toBeNull()      // cleared
+    expect(switched.nrrInputs?.churn).toBeNull()            // cleared
   })
 
   it('SKIP_NRR_CALCULATOR sets flag and clears inputs', () => {
     const withInputs = assessmentReducer(defaultState, {
       type: 'SET_NRR_INPUT',
-      field: 'expansionPct',
-      value: 18,
+      field: 'startingMRR',
+      value: 1_000_000,
     })
     const state = assessmentReducer(withInputs, { type: 'SKIP_NRR_CALCULATOR' })
     expect(state.nrrCalculatorSkipped).toBe(true)
@@ -144,11 +167,11 @@ describe('loadFromStorage', () => {
     expect(state).toEqual(defaultState)
   })
 
-  it('hydrates valid v2 state from localStorage', () => {
+  it('hydrates valid v3 state from localStorage', () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        schemaVersion: 2,
+        schemaVersion: 3,
         email: 'test@example.com',
         consent: true,
         sessionId: 'sess-xyz',
@@ -157,27 +180,27 @@ describe('loadFromStorage', () => {
     const state = loadFromStorage()
     expect(state.email).toBe('test@example.com')
     expect(state.sessionId).toBe('sess-xyz')
-    expect(state.schemaVersion).toBe(2)
+    expect(state.schemaVersion).toBe(3)
   })
 
-  it('resets on schemaVersion mismatch (old v1 data)', () => {
+  it('resets on v2 state (old schema)', () => {
     localStorage.setItem(
-      'loremex_assessment_state_v1',
-      JSON.stringify({ schemaVersion: 1, email: 'old@example.com' }),
+      'loremex_assessment_state_v2',
+      JSON.stringify({ schemaVersion: 2, email: 'old@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBeNull()
-    expect(state.schemaVersion).toBe(2)
+    expect(state.schemaVersion).toBe(3)
   })
 
-  it('resets on schemaVersion mismatch (wrong version number)', () => {
+  it('resets on version mismatch in v3 key', () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 0, email: 'old@example.com' }),
+      JSON.stringify({ schemaVersion: 2, email: 'old@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBeNull()
-    expect(state.schemaVersion).toBe(2)
+    expect(state.schemaVersion).toBe(3)
   })
 
   it('resets on malformed JSON', () => {
@@ -189,11 +212,11 @@ describe('loadFromStorage', () => {
   it('fills missing fields with defaults during hydration', () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 2, email: 'partial@example.com' }),
+      JSON.stringify({ schemaVersion: 3, email: 'partial@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBe('partial@example.com')
-    expect(state.selectedCapabilities).toEqual([]) // defaulted
-    expect(state.picks).toEqual(defaultState.picks) // defaulted
+    expect(state.selectedCapabilities).toEqual([])
+    expect(state.picks).toEqual(defaultState.picks)
   })
 })

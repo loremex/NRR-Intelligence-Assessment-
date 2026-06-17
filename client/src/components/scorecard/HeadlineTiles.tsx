@@ -1,5 +1,5 @@
 import { useAssessmentState } from '../../lib/state'
-import { computeNRR } from '../../lib/nrr'
+import { computeNRR, formatCurrency } from '../../lib/nrr'
 import {
   getOverallIntelligence,
   getDistanceToL5,
@@ -12,6 +12,13 @@ import { HeadlineTile } from './HeadlineTile'
 function fmt(n: number | null, pct = false): string {
   if (n === null) return '—'
   return pct ? `${(n * 100).toFixed(1)}%` : n.toFixed(2)
+}
+
+function fmtNetMovement(dollars: number | null, pct: number | null): string {
+  if (dollars === null || pct === null) return '—'
+  const dSign = dollars >= 0 ? '+' : ''
+  const pSign = pct >= 0 ? '+' : ''
+  return `${dSign}${formatCurrency(dollars)} (${pSign}${(pct * 100).toFixed(1)}%)`
 }
 
 function toPicks(state: ReturnType<typeof useAssessmentState>[0]): AllPicks {
@@ -38,12 +45,21 @@ export function HeadlineTiles() {
 
   const nrrVal = nrrResult?.nrr ?? null
   const grrVal = nrrResult?.grr ?? null
+  const netMovementDollars = nrrResult?.netMovementDollars ?? null
+  const netMovementPct = nrrResult?.netMovementPct ?? null
   const measOverall = hasMeasurement ? getMeasurementOverall(picks.measurement) : null
   const overallIntelligence = getOverallIntelligence(actionCaps, picks)
   const distanceToL5 = getDistanceToL5(overallIntelligence)
 
+  const hasNRR = nrrResult !== null
+  const netMovementColor = netMovementDollars === null
+    ? undefined
+    : netMovementDollars > 0 ? '#059669'
+    : netMovementDollars < 0 ? '#DC2626'
+    : undefined
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-10">
+    <div className={`grid grid-cols-2 gap-3 mb-10 ${hasNRR ? 'sm:grid-cols-3 lg:grid-cols-3' : 'sm:grid-cols-3 lg:grid-cols-5'}`}>
       <HeadlineTile
         label="NRR"
         value={fmt(nrrVal, true)}
@@ -74,6 +90,14 @@ export function HeadlineTiles() {
         value={distanceToL5 !== null ? distanceToL5.toFixed(2) : '—'}
         tooltip="How far your Overall Intelligence is from the maximum (5.0)"
       />
+      {hasNRR && (
+        <HeadlineTile
+          label="Net Movement"
+          value={fmtNetMovement(netMovementDollars, netMovementPct)}
+          color={netMovementColor}
+          tooltip="Net MRR change: expansion minus contraction minus churn"
+        />
+      )}
     </div>
   )
 }
