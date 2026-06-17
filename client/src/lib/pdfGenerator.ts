@@ -400,6 +400,203 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   return doc.output('blob')
 }
 
+// ─── Diagnostic PDF ───────────────────────────────────────────────────────────
+
+export interface PDFDiagnosticParams {
+  email: string
+  generatedAt: string
+  maturityStage: string
+  weakestBlock: string
+  strongestBlock: string
+  blockScores: Record<string, 1 | 2 | 3 | 4>
+  verdictDescription: string
+  recommendations: [string, string, string]
+  evUplift: { scenarios: PDFEVScenario[]; topOfMarketMessage: string | null; startingMRRFormatted: string } | null
+  q1_text: string | null
+  q2_text: string | null
+  q3_text: string | null
+  q4_text: string | null
+  q6_text: string | null
+  ctaUrl: string
+}
+
+const BLOCK_DISPLAY: Record<string, string> = {
+  reporting: 'NRR Reporting', retention: 'Retention', expansion: 'Expansion', pricing: 'Pricing',
+}
+const MATURITY_LABEL: Record<number, string> = {
+  1: 'Reactive', 2: 'Diagnostic', 3: 'Operational', 4: 'Optimized',
+}
+
+export function generateDiagnosticPDF(params: PDFDiagnosticParams): Blob {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const date = new Date(params.generatedAt).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  })
+
+  navBar(doc, 'NRR Intelligence Diagnostic')
+
+  let y = 28
+  doc.setFontSize(16)
+  doc.setTextColor(...NAVY)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Your NRR Intelligence Diagnostic', 14, y)
+  y += 6
+  doc.setFontSize(8)
+  doc.setTextColor(...GRAY)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`${params.email}   ·   ${date}`, 14, y)
+  y += 10
+
+  // Maturity stage banner
+  doc.setFillColor(248, 250, 252)
+  doc.roundedRect(14, y, pageWidth - 28, 14, 2, 2, 'F')
+  doc.setFontSize(7)
+  doc.setTextColor(...GRAY)
+  doc.text('OVERALL STAGE', 19, y + 5)
+  doc.setFontSize(12)
+  doc.setTextColor(...NAVY)
+  doc.setFont('helvetica', 'bold')
+  doc.text(params.maturityStage, 19, y + 12)
+  doc.setFont('helvetica', 'normal')
+  y += 20
+
+  // Block scores table
+  doc.setFontSize(8)
+  doc.setTextColor(...GRAY)
+  doc.setFont('helvetica', 'bold')
+  doc.text('BLOCK SCORES', 14, y)
+  doc.setFont('helvetica', 'normal')
+  y += 4
+
+  const blockOrder = ['reporting', 'retention', 'expansion', 'pricing']
+  const blockBody = blockOrder.map((b) => {
+    const score = params.blockScores[b] ?? 1
+    const label = MATURITY_LABEL[score] ?? ''
+    const displayName = BLOCK_DISPLAY[b] ?? b
+    const tag = b === params.weakestBlock ? ' ▲ Gap' : b === params.strongestBlock ? ' ★' : ''
+    return [displayName + tag, score.toString(), label]
+  })
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Block', 'Score (1–4)', 'Stage']],
+    body: blockBody,
+    theme: 'grid',
+    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' },
+    bodyStyles: { fontSize: 8, textColor: DARK },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' } },
+    margin: { left: 14, right: 14 },
+  })
+  y = doc.lastAutoTable.finalY + 8
+
+  // Verdict
+  doc.setFontSize(8)
+  doc.setTextColor(...GRAY)
+  doc.setFont('helvetica', 'bold')
+  doc.text('VERDICT', 14, y)
+  doc.setFont('helvetica', 'normal')
+  y += 4
+  doc.setFontSize(8.5)
+  doc.setTextColor(...DARK)
+  const verdictLines = doc.splitTextToSize(params.verdictDescription, pageWidth - 28) as string[]
+  doc.text(verdictLines, 14, y)
+  y += verdictLines.length * 4.5 + 8
+
+  // Recommendations
+  doc.setFontSize(8)
+  doc.setTextColor(...GRAY)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`WHERE TO FOCUS — ${(BLOCK_DISPLAY[params.weakestBlock] ?? params.weakestBlock).toUpperCase()}`, 14, y)
+  doc.setFont('helvetica', 'normal')
+  y += 5
+  params.recommendations.forEach((rec, i) => {
+    doc.setFontSize(8)
+    doc.setTextColor(...BLUE)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${i + 1}.`, 14, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...DARK)
+    const lines = doc.splitTextToSize(rec, pageWidth - 30) as string[]
+    doc.text(lines, 20, y)
+    y += lines.length * 4.5 + 2
+  })
+  y += 4
+
+  // EV uplift
+  if (params.evUplift && params.evUplift.scenarios.length > 0) {
+    doc.setFontSize(8)
+    doc.setTextColor(...NAVY)
+    doc.setFont('helvetica', 'bold')
+    doc.text('ENTERPRISE VALUE IMPACT', 14, y)
+    doc.setFont('helvetica', 'normal')
+    y += 5
+    if (params.evUplift.topOfMarketMessage) {
+      const msgLines = doc.splitTextToSize(params.evUplift.topOfMarketMessage, pageWidth - 28) as string[]
+      doc.setFontSize(8)
+      doc.setTextColor(...GRAY)
+      doc.text(msgLines, 14, y)
+      y += msgLines.length * 4 + 3
+    } else {
+      for (const s of params.evUplift.scenarios) {
+        doc.setFontSize(8)
+        doc.setTextColor(...DARK)
+        doc.text(`${s.label} (+${s.ppDelta}pp${s.ppCapped ? '+' : ''}): ${fmtEV(s.evUplift)}`, 14, y)
+        y += 5
+      }
+    }
+    doc.setFontSize(6.5)
+    doc.setTextColor(...GRAY)
+    doc.text('Indicative — based on public SaaS valuation benchmarks.', 14, y)
+    y += 8
+  }
+
+  // Free text answers (sales reference)
+  const freeTextEntries = [
+    ['NRR Reporting', params.q1_text],
+    ['Retention', params.q2_text],
+    ['Expansion', params.q3_text],
+    ['Pricing', params.q4_text],
+    ['Additional context', params.q6_text],
+  ].filter(([, v]) => v) as Array<[string, string]>
+
+  if (freeTextEntries.length > 0) {
+    doc.setFontSize(8)
+    doc.setTextColor(...GRAY)
+    doc.setFont('helvetica', 'bold')
+    doc.text('ADDITIONAL CONTEXT FROM RESPONDENT', 14, y)
+    doc.setFont('helvetica', 'normal')
+    y += 5
+    for (const [label, text] of freeTextEntries) {
+      doc.setFontSize(7.5)
+      doc.setTextColor(...GRAY)
+      doc.text(label.toUpperCase(), 14, y)
+      y += 4
+      doc.setFontSize(8)
+      doc.setTextColor(...DARK)
+      const lines = doc.splitTextToSize(text, pageWidth - 28) as string[]
+      doc.text(lines, 14, y)
+      y += lines.length * 4 + 3
+    }
+    y += 4
+  }
+
+  // CTA
+  doc.setFontSize(8)
+  doc.setTextColor(...BLUE)
+  doc.text(`Book a call: ${params.ctaUrl}`, 14, y)
+
+  // Footers
+  const total = doc.getNumberOfPages()
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i)
+    footer(doc, i, total, date)
+  }
+
+  return doc.output('blob')
+}
+
 // Convert a Blob to base64 string via FileReader (browser async API)
 export function getPDFBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {

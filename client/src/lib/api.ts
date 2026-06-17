@@ -89,22 +89,16 @@ export async function completeSession(
 // ─── Diagnostic submission ────────────────────────────────────────────────────
 
 export interface DiagnosticAnswerPayload {
-  q2: string
-  q2_label: string
-  q2_text: string
-  q3: string
-  q3_label: string
-  q3_text: string
-  q4: string
-  q4_label: string
-  q4_text: string
-  q5: string
-  q5_label: string
-  q5_text: string
-  q6: string
-  q6_label: string
-  q6_text: string
-  q7_text: string
+  q1_score: 1 | 2 | 3 | 4
+  q1_text: string | null
+  q2_score: 1 | 2 | 3 | 4
+  q2_text: string | null
+  q3_score: 1 | 2 | 3 | 4
+  q3_text: string | null
+  q4_score: 1 | 2 | 3 | 4
+  q4_text: string | null
+  q5_priority: string
+  q6_text: string | null
 }
 
 export interface DiagnosticPayload {
@@ -112,9 +106,15 @@ export interface DiagnosticPayload {
   contactId: string | null
   email: string
   completedAt: string
-  verdictTitle: string
+  maturityStage: string
+  weakestBlock: string
+  strongestBlock: string
+  blockScores: Record<string, 1 | 2 | 3 | 4>
+  q5Priority: string
+  verdictDescription: string
   recommendations: [string, string, string]
   answers: DiagnosticAnswerPayload
+  evUplift: EVEmailData | null
 }
 
 export interface DiagnosticResult {

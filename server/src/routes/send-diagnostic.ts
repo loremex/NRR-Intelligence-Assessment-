@@ -5,12 +5,18 @@ import { sendDiagnosticEmail } from '../lib/email.js'
 const router = Router()
 
 interface DiagnosticAnswerPayload {
-  q2: string; q2_label: string; q2_text: string
-  q3: string; q3_label: string; q3_text: string
-  q4: string; q4_label: string; q4_text: string
-  q5: string; q5_label: string; q5_text: string
-  q6: string; q6_label: string; q6_text: string
-  q7_text: string
+  q1_score: 1 | 2 | 3 | 4; q1_text: string | null
+  q2_score: 1 | 2 | 3 | 4; q2_text: string | null
+  q3_score: 1 | 2 | 3 | 4; q3_text: string | null
+  q4_score: 1 | 2 | 3 | 4; q4_text: string | null
+  q5_priority: string; q6_text: string | null
+}
+
+interface EVEmailScenario { label: string; ppDelta: number; ppCapped: boolean; evUplift: number }
+interface EVEmailData {
+  scenarios: EVEmailScenario[]
+  topOfMarketMessage: string | null
+  startingMRRFormatted: string
 }
 
 interface SendDiagnosticBody {
@@ -18,9 +24,15 @@ interface SendDiagnosticBody {
   contactId: string | null
   email: string
   completedAt: string
-  verdictTitle: string
+  maturityStage: string
+  weakestBlock: string
+  strongestBlock: string
+  blockScores: Record<string, 1 | 2 | 3 | 4>
+  q5Priority: string
+  verdictDescription: string
   recommendations: [string, string, string]
   answers: DiagnosticAnswerPayload
+  evUplift: EVEmailData | null
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -32,7 +44,9 @@ function isValidBody(body: unknown): body is SendDiagnosticBody {
     typeof b.email === 'string' &&
     EMAIL_REGEX.test(b.email) &&
     typeof b.completedAt === 'string' &&
-    typeof b.verdictTitle === 'string' &&
+    typeof b.maturityStage === 'string' &&
+    typeof b.weakestBlock === 'string' &&
+    typeof b.verdictDescription === 'string' &&
     Array.isArray(b.recommendations) &&
     (b.recommendations as unknown[]).length === 3 &&
     typeof b.answers === 'object' &&
@@ -46,13 +60,23 @@ router.post('/', async (req, res) => {
     return
   }
 
-  const { contactId, email, completedAt, verdictTitle, recommendations, answers } = req.body
+  const {
+    contactId, email, completedAt,
+    maturityStage, weakestBlock, strongestBlock, blockScores,
+    q5Priority, verdictDescription, recommendations, answers, evUplift,
+  } = req.body
 
   const [hubspotResult, emailResult] = await Promise.allSettled([
     contactId
-      ? updateContactWithDiagnostic(contactId, { completedAt, verdictTitle, answers })
+      ? updateContactWithDiagnostic(contactId, {
+          completedAt, maturityStage, weakestBlock, strongestBlock,
+          blockScores, q5Priority, answers,
+        })
       : Promise.reject(new Error('No contactId — cannot update HubSpot')),
-    sendDiagnosticEmail({ to: email, verdictTitle, recommendations, answers }),
+    sendDiagnosticEmail({
+      to: email, maturityStage, weakestBlock, strongestBlock, blockScores,
+      verdictDescription, recommendations, answers, evUplift: evUplift ?? null,
+    }),
   ])
 
   const hubspotUpdated = hubspotResult.status === 'fulfilled'

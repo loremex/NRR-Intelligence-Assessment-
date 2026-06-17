@@ -226,56 +226,94 @@ export async function sendScorecardEmail(params: SendScorecardEmailParams): Prom
 // ─── Diagnostic email ─────────────────────────────────────────────────────────
 
 export interface DiagnosticAnswerData {
-  q2: string; q2_label: string; q2_text: string
-  q3: string; q3_label: string; q3_text: string
-  q4: string; q4_label: string; q4_text: string
-  q5: string; q5_label: string; q5_text: string
-  q6: string; q6_label: string; q6_text: string
-  q7_text: string
+  q1_score: 1 | 2 | 3 | 4
+  q1_text: string | null
+  q2_score: 1 | 2 | 3 | 4
+  q2_text: string | null
+  q3_score: 1 | 2 | 3 | 4
+  q3_text: string | null
+  q4_score: 1 | 2 | 3 | 4
+  q4_text: string | null
+  q5_priority: string
+  q6_text: string | null
+}
+
+interface EVEmailScenarioDiag {
+  label: string; ppDelta: number; ppCapped: boolean; evUplift: number
+}
+interface EVEmailDataDiag {
+  scenarios: EVEmailScenarioDiag[]
+  topOfMarketMessage: string | null
+  startingMRRFormatted: string
 }
 
 export interface SendDiagnosticEmailParams {
   to: string
-  verdictTitle: string
+  maturityStage: string
+  weakestBlock: string
+  strongestBlock: string
+  blockScores: Record<string, 1 | 2 | 3 | 4>
+  verdictDescription: string
   recommendations: [string, string, string]
   answers: DiagnosticAnswerData
+  evUplift: EVEmailDataDiag | null
+}
+
+const MATURITY_BG: Record<number, string> = {
+  1: '#FEE2E2', 2: '#FEF3C7', 3: '#DCFCE7', 4: '#D1FAE5',
+}
+const MATURITY_NAME: Record<number, string> = {
+  1: 'Reactive', 2: 'Diagnostic', 3: 'Operational', 4: 'Optimized',
+}
+const BLOCK_NAME: Record<string, string> = {
+  reporting: 'NRR Reporting', retention: 'Retention', expansion: 'Expansion', pricing: 'Pricing',
 }
 
 function buildDiagnosticEmailHtml(params: SendDiagnosticEmailParams, calendlyUrl: string): string {
-  const { verdictTitle, recommendations, answers } = params
+  const { maturityStage, weakestBlock, strongestBlock, blockScores, verdictDescription, recommendations, answers, evUplift } = params
 
   const recRows = recommendations
     .map((rec, i) => `
       <tr>
-        <td style="padding:0 0 10px;vertical-align:top;">
-          <span style="display:inline-block;width:22px;height:22px;background:#2563EB;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;vertical-align:top;margin-top:1px;">${i + 1}</span>
+        <td style="padding:0 0 12px;vertical-align:top;">
+          <span style="display:inline-block;width:22px;height:22px;background:#2563EB;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;flex-shrink:0;vertical-align:top;margin-top:1px;">${i + 1}</span>
           <span style="font-size:13px;color:#1E293B;line-height:1.6;">${rec}</span>
         </td>
       </tr>`)
     .join('')
 
-  const qaRows = [
-    ['Your biggest NRR challenge', answers.q2_label, answers.q2_text],
-    ['Data maturity', answers.q3_label, answers.q3_text],
-    ['Team structure', answers.q4_label, answers.q4_text],
-    ['Strategic priority', answers.q5_label, answers.q5_text],
-    ['Current ARR', answers.q6_label, answers.q6_text],
+  const blockOrder = ['reporting', 'retention', 'expansion', 'pricing']
+  const blockRows = blockOrder
+    .map((b) => {
+      const score = blockScores[b] ?? 1
+      const bg = MATURITY_BG[score] ?? '#F1F5F9'
+      const name = MATURITY_NAME[score] ?? ''
+      const displayName = BLOCK_NAME[b] ?? b
+      return `<tr>
+        <td style="padding:6px 0;font-size:13px;color:#1E293B;">${displayName}${b === weakestBlock ? ' <span style="font-size:10px;color:#DC2626;">▲ Gap</span>' : ''}${b === strongestBlock && b !== weakestBlock ? ' <span style="font-size:10px;color:#16A34A;">★</span>' : ''}</td>
+        <td style="padding:6px 8px;text-align:right;"><span style="background:${bg};padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;">${name}</span></td>
+      </tr>`
+    })
+    .join('')
+
+  const evBlock = evUplift && evUplift.scenarios.length > 0 ? buildEVBlock(evUplift as Parameters<typeof buildEVBlock>[0]) : ''
+
+  const freeTextRows = [
+    ['NRR Reporting — free text', answers.q1_text],
+    ['Retention — free text', answers.q2_text],
+    ['Expansion — free text', answers.q3_text],
+    ['Pricing — free text', answers.q4_text],
+    ['Additional context', answers.q6_text],
   ]
-    .map(([q, a, note]) => `
+    .filter(([, v]) => v)
+    .map(([label, text]) => `
       <tr>
         <td style="padding:0 0 10px;">
-          <p style="margin:0 0 2px;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">${q}</p>
-          <p style="margin:0;font-size:13px;color:#1E293B;">${a}${note ? ` <span style="color:#64748B;font-style:italic;">— ${note}</span>` : ''}</p>
+          <p style="margin:0 0 2px;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">${label}</p>
+          <p style="margin:0;font-size:13px;color:#1E293B;font-style:italic;">${text}</p>
         </td>
       </tr>`)
     .join('')
-
-  const q7Row = answers.q7_text
-    ? `<tr><td style="padding:0 0 10px;">
-        <p style="margin:0 0 2px;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Additional context</p>
-        <p style="margin:0;font-size:13px;color:#1E293B;font-style:italic;">${answers.q7_text}</p>
-      </td></tr>`
-    : ''
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -288,69 +326,79 @@ function buildDiagnosticEmailHtml(params: SendDiagnosticEmailParams, calendlyUrl
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-
-        <!-- Header -->
         <tr>
           <td style="background:#002337;padding:20px 32px;">
             <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;font-family:Georgia,serif;">Loremex</p>
           </td>
         </tr>
-
-        <!-- Body -->
         <tr>
           <td style="padding:32px;">
-            <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#002337;font-family:Georgia,serif;">
-              Your NRR Diagnostic
+            <h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#002337;font-family:Georgia,serif;">
+              Your NRR Intelligence Diagnostic
             </h1>
-            <p style="margin:0 0 24px;font-size:14px;color:#64748B;">
-              Here's your personalised diagnosis and recommended focus areas.
+            <p style="margin:0 0 24px;font-size:13px;color:#64748B;font-style:italic;">
+              Based on your answers across Reporting, Retention, Expansion, and Pricing.
             </p>
 
-            <!-- Verdict card -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border-radius:8px;margin-bottom:24px;">
+            <!-- Maturity stage -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border-radius:8px;margin-bottom:16px;border:1px solid #E2E8F0;">
               <tr>
-                <td style="padding:20px;">
-                  <p style="margin:0 0 6px;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Diagnosis</p>
-                  <p style="margin:0;font-size:18px;font-weight:700;color:#002337;font-family:Georgia,serif;line-height:1.3;">${verdictTitle}</p>
+                <td style="padding:16px 20px;">
+                  <p style="margin:0 0 4px;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Overall Stage</p>
+                  <p style="margin:0;font-size:24px;font-weight:700;color:#002337;font-family:Georgia,serif;">${maturityStage}</p>
                 </td>
               </tr>
             </table>
 
+            <!-- Block scores -->
+            <p style="margin:0 0 8px;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Block Scores</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border-radius:8px;margin-bottom:24px;border:1px solid #E2E8F0;">
+              <tr><td style="padding:12px 16px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  ${blockRows}
+                </table>
+              </td></tr>
+            </table>
+
+            <!-- Verdict -->
+            <p style="margin:0 0 8px;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Verdict</p>
+            <p style="margin:0 0 24px;font-size:13px;color:#1E293B;line-height:1.7;">${verdictDescription}</p>
+
             <!-- Recommendations -->
-            <p style="margin:0 0 12px;font-size:13px;color:#64748B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Where to focus</p>
+            <p style="margin:0 0 12px;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Where to focus — ${BLOCK_NAME[weakestBlock] ?? weakestBlock}</p>
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
               ${recRows}
             </table>
+
+            ${evBlock}
 
             <!-- CTA -->
             <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
               <tr>
                 <td style="background:#2563EB;border-radius:8px;padding:12px 24px;">
                   <a href="${calendlyUrl}" style="font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">
-                    Book a call with Loremex →
+                    Book a 30-min call with Loremex →
                   </a>
                 </td>
               </tr>
             </table>
 
             <p style="margin:0 0 24px;font-size:13px;color:#64748B;line-height:1.6;">
-              Want to go deeper? The full NRR Intelligence Assessment benchmarks you capability-by-capability and produces a detailed PDF scorecard with targeted recommendations.
+              Want to go deeper? The full NRR Intelligence Assessment gives you a capability-by-capability scorecard with heatmaps and targeted recommendations.
             </p>
 
-            <!-- Q&A summary -->
-            <p style="margin:0 0 12px;font-size:13px;color:#64748B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Your answers</p>
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border-radius:8px;margin-bottom:8px;">
+            ${freeTextRows ? `
+            <!-- Free text answers (sales reference) -->
+            <p style="margin:0 0 8px;font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Additional context from respondent</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#FFFBEB;border-radius:8px;border:1px solid #FCD34D;margin-bottom:8px;">
               <tr><td style="padding:16px 20px;">
                 <table width="100%" cellpadding="0" cellspacing="0">
-                  ${qaRows}
-                  ${q7Row}
+                  ${freeTextRows}
                 </table>
               </td></tr>
-            </table>
+            </table>` : ''}
           </td>
         </tr>
-
-        <!-- Footer -->
         <tr>
           <td style="padding:20px 32px;background:#F8FAFC;border-top:1px solid #E2E8F0;">
             <p style="margin:0;font-size:12px;color:#94A3B8;">
@@ -358,7 +406,6 @@ function buildDiagnosticEmailHtml(params: SendDiagnosticEmailParams, calendlyUrl
             </p>
           </td>
         </tr>
-
       </table>
     </td></tr>
   </table>
@@ -381,7 +428,7 @@ export async function sendDiagnosticEmail(params: SendDiagnosticEmailParams): Pr
       from,
       to: params.to,
       replyTo,
-      subject: `Your NRR Diagnostic — ${params.verdictTitle}`,
+      subject: `Your NRR Diagnostic — ${params.maturityStage} Stage`,
       html,
     })
 

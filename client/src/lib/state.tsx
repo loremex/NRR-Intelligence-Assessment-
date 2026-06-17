@@ -11,7 +11,7 @@ import {
 } from 'react'
 import type { NRRMode } from './nrr'
 
-const STORAGE_KEY = 'loremex_assessment_state_v4'
+const STORAGE_KEY = 'loremex_assessment_state_v5'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +19,9 @@ export type { NRRMode }
 export type NRRField = 'startingMRR' | 'expansion' | 'contraction' | 'churn'
 export type ActionCapKey = 'retention' | 'expansion' | 'pricing'
 export type CapKey = 'measurement' | ActionCapKey
+
+export type DiagnosticBlockKey = 'q1_reporting' | 'q2_retention' | 'q3_expansion' | 'q4_pricing'
+export type DiagnosticPriority = 'reporting' | 'retention' | 'expansion' | 'pricing'
 
 export interface NRRInputs {
   mode: NRRMode
@@ -28,22 +31,31 @@ export interface NRRInputs {
   churn: number | null
 }
 
+export interface DiagnosticBlockAnswer {
+  choice: 1 | 2 | 3 | 4 | null
+  freeText: string | null
+}
+
 export interface DiagnosticAnswers {
-  q2_retention: string | null
-  q2_text: string
-  q3_data: string | null
-  q3_text: string
-  q4_team: string | null
-  q4_text: string
-  q5_priority: string | null
-  q5_text: string
-  q6_arr: string | null
-  q6_text: string
-  q7_anything_else: string
+  q1_reporting: DiagnosticBlockAnswer
+  q2_retention: DiagnosticBlockAnswer
+  q3_expansion: DiagnosticBlockAnswer
+  q4_pricing: DiagnosticBlockAnswer
+  q5_priority: { choice: DiagnosticPriority | null; freeText: string | null }
+  q6_anything_else: { freeText: string | null }
+}
+
+export const DEFAULT_DIAGNOSTIC_ANSWERS: DiagnosticAnswers = {
+  q1_reporting: { choice: null, freeText: null },
+  q2_retention: { choice: null, freeText: null },
+  q3_expansion: { choice: null, freeText: null },
+  q4_pricing: { choice: null, freeText: null },
+  q5_priority: { choice: null, freeText: null },
+  q6_anything_else: { freeText: null },
 }
 
 export interface AssessmentState {
-  schemaVersion: 4
+  schemaVersion: 5
   sessionId: string | null
   contactId: string | null
   email: string | null
@@ -70,7 +82,10 @@ export type AssessmentAction =
   | { type: 'SET_NRR_MODE'; mode: NRRMode }
   | { type: 'SKIP_NRR_CALCULATOR' }
   | { type: 'RESET_NRR_CALCULATOR' }
-  | { type: 'SET_DIAGNOSTIC_ANSWER'; field: keyof DiagnosticAnswers; value: string | null }
+  | { type: 'SET_DIAGNOSTIC_BLOCK_CHOICE'; block: DiagnosticBlockKey; choice: 1 | 2 | 3 | 4 | null }
+  | { type: 'SET_DIAGNOSTIC_BLOCK_TEXT'; block: DiagnosticBlockKey; text: string }
+  | { type: 'SET_DIAGNOSTIC_PRIORITY_CHOICE'; choice: DiagnosticPriority | null }
+  | { type: 'SET_DIAGNOSTIC_ANYTHING_ELSE'; text: string }
   | { type: 'SET_PRE_SELECTED_CAPABILITIES'; capabilities: CapKey[] }
   | { type: 'SET_SELECTED_CAPABILITIES'; capabilities: CapKey[] }
   | { type: 'SET_PICK_MEASUREMENT'; id: string; level: number | null }
@@ -82,7 +97,7 @@ export type AssessmentAction =
 // ─── Default state ────────────────────────────────────────────────────────────
 
 export const defaultState: AssessmentState = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   sessionId: null,
   contactId: null,
   email: null,
@@ -144,16 +159,48 @@ export function assessmentReducer(state: AssessmentState, action: AssessmentActi
     case 'RESET_NRR_CALCULATOR':
       return { ...state, nrrCalculatorSkipped: false, nrrInputs: null }
 
-    case 'SET_DIAGNOSTIC_ANSWER': {
-      const current = state.diagnosticAnswers ?? {
-        q2_retention: null, q2_text: '',
-        q3_data: null, q3_text: '',
-        q4_team: null, q4_text: '',
-        q5_priority: null, q5_text: '',
-        q6_arr: null, q6_text: '',
-        q7_anything_else: '',
+    case 'SET_DIAGNOSTIC_BLOCK_CHOICE': {
+      const current = state.diagnosticAnswers ?? DEFAULT_DIAGNOSTIC_ANSWERS
+      return {
+        ...state,
+        diagnosticAnswers: {
+          ...current,
+          [action.block]: { ...current[action.block], choice: action.choice },
+        },
       }
-      return { ...state, diagnosticAnswers: { ...current, [action.field]: action.value } }
+    }
+
+    case 'SET_DIAGNOSTIC_BLOCK_TEXT': {
+      const current = state.diagnosticAnswers ?? DEFAULT_DIAGNOSTIC_ANSWERS
+      return {
+        ...state,
+        diagnosticAnswers: {
+          ...current,
+          [action.block]: { ...current[action.block], freeText: action.text || null },
+        },
+      }
+    }
+
+    case 'SET_DIAGNOSTIC_PRIORITY_CHOICE': {
+      const current = state.diagnosticAnswers ?? DEFAULT_DIAGNOSTIC_ANSWERS
+      return {
+        ...state,
+        diagnosticAnswers: {
+          ...current,
+          q5_priority: { ...current.q5_priority, choice: action.choice },
+        },
+      }
+    }
+
+    case 'SET_DIAGNOSTIC_ANYTHING_ELSE': {
+      const current = state.diagnosticAnswers ?? DEFAULT_DIAGNOSTIC_ANSWERS
+      return {
+        ...state,
+        diagnosticAnswers: {
+          ...current,
+          q6_anything_else: { freeText: action.text || null },
+        },
+      }
     }
 
     case 'SET_PRE_SELECTED_CAPABILITIES':
@@ -207,8 +254,8 @@ export function loadFromStorage(): AssessmentState {
     if (!raw) return defaultState
     const parsed = JSON.parse(raw) as Partial<AssessmentState>
     // Reject any stored state with a mismatched schema version
-    if (parsed.schemaVersion !== 4) return defaultState
-    return { ...defaultState, ...parsed, schemaVersion: 4 }
+    if (parsed.schemaVersion !== 5) return defaultState
+    return { ...defaultState, ...parsed, schemaVersion: 5 }
   } catch {
     return defaultState
   }

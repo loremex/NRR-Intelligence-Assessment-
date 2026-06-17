@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { assessmentReducer, defaultState, loadFromStorage, type CapKey } from './state'
 
-const STORAGE_KEY = 'loremex_assessment_state_v4'
+const STORAGE_KEY = 'loremex_assessment_state_v5'
 
 describe('assessmentReducer', () => {
   it('default state has correct shape', () => {
-    expect(defaultState.schemaVersion).toBe(4)
+    expect(defaultState.schemaVersion).toBe(5)
     expect(defaultState.email).toBeNull()
     expect(defaultState.sessionId).toBeNull()
     expect(defaultState.selectedCapabilities).toEqual([])
@@ -145,14 +145,44 @@ describe('assessmentReducer', () => {
     expect(s3.completedSections).toHaveLength(2)
   })
 
-  it('SET_DIAGNOSTIC_ANSWER initialises diagnosticAnswers and sets field', () => {
+  it('SET_DIAGNOSTIC_BLOCK_CHOICE initialises diagnosticAnswers and sets choice', () => {
     const state = assessmentReducer(defaultState, {
-      type: 'SET_DIAGNOSTIC_ANSWER',
-      field: 'q2_retention',
-      value: 'churn',
+      type: 'SET_DIAGNOSTIC_BLOCK_CHOICE',
+      block: 'q1_reporting',
+      choice: 3,
     })
-    expect(state.diagnosticAnswers?.q2_retention).toBe('churn')
-    expect(state.diagnosticAnswers?.q3_data).toBeNull()
+    expect(state.diagnosticAnswers?.q1_reporting.choice).toBe(3)
+    expect(state.diagnosticAnswers?.q2_retention.choice).toBeNull()
+  })
+
+  it('SET_DIAGNOSTIC_BLOCK_TEXT sets freeText on a block', () => {
+    const s1 = assessmentReducer(defaultState, {
+      type: 'SET_DIAGNOSTIC_BLOCK_CHOICE',
+      block: 'q2_retention',
+      choice: 2,
+    })
+    const state = assessmentReducer(s1, {
+      type: 'SET_DIAGNOSTIC_BLOCK_TEXT',
+      block: 'q2_retention',
+      text: 'We track renewal dates in a spreadsheet',
+    })
+    expect(state.diagnosticAnswers?.q2_retention.freeText).toBe('We track renewal dates in a spreadsheet')
+  })
+
+  it('SET_DIAGNOSTIC_PRIORITY_CHOICE sets q5 choice', () => {
+    const state = assessmentReducer(defaultState, {
+      type: 'SET_DIAGNOSTIC_PRIORITY_CHOICE',
+      choice: 'retention',
+    })
+    expect(state.diagnosticAnswers?.q5_priority.choice).toBe('retention')
+  })
+
+  it('SET_DIAGNOSTIC_ANYTHING_ELSE sets q6 freeText', () => {
+    const state = assessmentReducer(defaultState, {
+      type: 'SET_DIAGNOSTIC_ANYTHING_ELSE',
+      text: 'We recently lost a key account',
+    })
+    expect(state.diagnosticAnswers?.q6_anything_else.freeText).toBe('We recently lost a key account')
   })
 
   it('SET_PRE_SELECTED_CAPABILITIES sets array', () => {
@@ -187,11 +217,11 @@ describe('loadFromStorage', () => {
     expect(state).toEqual(defaultState)
   })
 
-  it('hydrates valid v4 state from localStorage', () => {
+  it('hydrates valid v5 state from localStorage', () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        schemaVersion: 4,
+        schemaVersion: 5,
         email: 'test@example.com',
         consent: true,
         sessionId: 'sess-xyz',
@@ -200,27 +230,27 @@ describe('loadFromStorage', () => {
     const state = loadFromStorage()
     expect(state.email).toBe('test@example.com')
     expect(state.sessionId).toBe('sess-xyz')
-    expect(state.schemaVersion).toBe(4)
+    expect(state.schemaVersion).toBe(5)
   })
 
-  it('resets on v3 state (old schema)', () => {
+  it('resets on v4 state (old schema)', () => {
     localStorage.setItem(
-      'loremex_assessment_state_v3',
-      JSON.stringify({ schemaVersion: 3, email: 'old@example.com' }),
+      'loremex_assessment_state_v4',
+      JSON.stringify({ schemaVersion: 4, email: 'old@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBeNull()
-    expect(state.schemaVersion).toBe(4)
+    expect(state.schemaVersion).toBe(5)
   })
 
-  it('resets on version mismatch in v4 key', () => {
+  it('resets on version mismatch in v5 key', () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 3, email: 'old@example.com' }),
+      JSON.stringify({ schemaVersion: 4, email: 'old@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBeNull()
-    expect(state.schemaVersion).toBe(4)
+    expect(state.schemaVersion).toBe(5)
   })
 
   it('resets on malformed JSON', () => {
@@ -232,7 +262,7 @@ describe('loadFromStorage', () => {
   it('fills missing fields with defaults during hydration', () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 4, email: 'partial@example.com' }),
+      JSON.stringify({ schemaVersion: 5, email: 'partial@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBe('partial@example.com')
