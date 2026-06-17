@@ -108,6 +108,7 @@ interface HubSpotPropertyDef {
   type: string
   fieldType: string
   groupName: string
+  options?: Array<{ label: string; value: string; hidden: boolean }>
 }
 
 const REQUIRED_PROPERTIES: HubSpotPropertyDef[] = [
@@ -117,6 +118,11 @@ const REQUIRED_PROPERTIES: HubSpotPropertyDef[] = [
     type: 'bool',
     fieldType: 'booleancheckbox',
     groupName: 'contactinformation',
+    // HubSpot requires explicit true/false options for booleancheckbox
+    options: [
+      { label: 'Yes', value: 'true', hidden: false },
+      { label: 'No', value: 'false', hidden: false },
+    ],
   },
   {
     name: 'first_touch_source',
