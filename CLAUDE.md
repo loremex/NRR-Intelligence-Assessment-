@@ -201,18 +201,44 @@ Run order for first session:
 - Do NOT use Puppeteer or server-side PDF generation. Client-side jsPDF only.
 - Do NOT skip the math reference tests. The Excel workbook is the math truth.
 
-## Environment variables (`.env.local`)
+## Environment variables
+
+Create `server/.env` (gitignored) for local development:
 
 ```
-VITE_HUBSPOT_PORTAL_ID=
-VITE_HUBSPOT_FORM_ID=
-HUBSPOT_API_KEY=                # server-side only
-RESEND_API_KEY=                 # server-side only
-VITE_POSTHOG_KEY=               # optional, for event tracking
+# HubSpot (server-side)
+HUBSPOT_ACCESS_TOKEN=          # Private App token — needs contacts:read, contacts:write, crm.schemas.contacts.write
+RESEND_API_KEY=                # From resend.com dashboard
+RESEND_FROM_EMAIL=onboarding@resend.dev   # Swap to verified domain in Sprint 5
+RESEND_REPLY_TO=hello@loremex.ai
 VITE_BASE_URL=http://localhost:5173
+PORT=3001
+NODE_ENV=development
+
+# Optional
+HUBSPOT_DEBUG_KEY=             # Set to enable /api/retry-queue-status endpoint
+VITE_POSTHOG_KEY=
+VITE_POSTHOG_HOST=https://us.i.posthog.com
 ```
 
-NEVER commit `.env.local`. The `.env.example` ships sanitized.
+NEVER commit `server/.env`. The `.env.example` at repo root ships sanitized.
+
+## Retry queue (Sprint 4)
+
+- In-memory queue backed by `server/.retry-queue.json` (gitignored)
+- Persists across server restarts; hydrated at boot
+- Background drain worker runs every 60s
+- Max 5 attempts per item; exponential backoff: `2^attempts × 60s`
+- Types: `hubspot` (contact property updates) and `email` (Resend send)
+- Admin debug endpoint: `GET /api/retry-queue-status` with `X-Debug-Key` header — **add proper auth before exposing externally**
+- Graceful shutdown (SIGTERM/SIGINT) persists queue to disk
+
+## PDF generation (Sprint 4)
+
+- Client-side only using jsPDF + jspdf-autotable
+- Client generates PDF → converts to base64 → POSTs to `/api/complete-session`
+- Server attaches the same base64 bytes to the Resend email attachment
+- Triggered once on first scorecard view (guarded by `state.completedAt !== null`)
 
 ## Test before commit
 

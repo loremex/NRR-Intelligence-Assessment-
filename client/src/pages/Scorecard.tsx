@@ -1,15 +1,20 @@
-import { useEffect } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAssessmentState, type ActionCapKey, type CapKey } from '../lib/state'
 import { getCapability } from '../lib/rubric'
-import { getCapabilityOverall, getThreeWeakestLevers, scoreToColor, type AllPicks } from '../lib/scoring'
+import { getCapabilityOverall, getThreeWeakestLevers, scoreToColor, DIMS, getActionDimAvg, getCrossCapDimAvg, getMeasurementOverall, getLeverAvg, type AllPicks } from '../lib/scoring'
 import { track } from '../lib/analytics'
+import { composeRecommendation } from '../lib/recommendations'
+import { computeNRR } from '../lib/nrr'
+import { generateScorecardPDF, getPDFBase64, type PDFParams, type PDFCapabilityData, type PDFCrossCapRow } from '../lib/pdfGenerator'
+import { completeSession, type ScorecardPayload } from '../lib/api'
 import { HeadlineTiles } from '../components/scorecard/HeadlineTiles'
 import { CrossCapDimView } from '../components/scorecard/CrossCapDimView'
 import { MeasurementHeatmap } from '../components/scorecard/MeasurementHeatmap'
 import { ActionHeatmap } from '../components/scorecard/ActionHeatmap'
 import { ThreeWeakest } from '../components/scorecard/ThreeWeakest'
 import { RecommendationBlock } from '../components/scorecard/RecommendationBlock'
+import type { MeasurementCapability, ActionCapability } from '../lib/rubric-schema'
 
 const CAP_ORDER: CapKey[] = ['measurement', 'retention', 'expansion', 'pricing']
 
@@ -22,9 +27,21 @@ function toPicks(state: ReturnType<typeof useAssessmentState>[0]): AllPicks {
   }
 }
 
+function deriveScorecardScope(
+  caps: CapKey[],
+): 'full' | 'action-only' | 'partial' | 'measurement-only' {
+  const hasMeasurement = caps.includes('measurement')
+  const actionCount = caps.filter((k) => k !== 'measurement').length
+  if (hasMeasurement && actionCount === 3) return 'full'
+  if (!hasMeasurement && actionCount > 0) return 'action-only'
+  if (hasMeasurement && actionCount === 0) return 'measurement-only'
+  return 'partial'
+}
+
 function Scorecard() {
   const navigate = useNavigate()
   const [state, dispatch] = useAssessmentState()
+  const [pdfDownloading, setPdfDownloading] = useState(false)
 
   const sections = CAP_ORDER.filter((k) => state.selectedCapabilities.includes(k))
   const allSectionsComplete =
@@ -32,6 +49,8 @@ function Scorecard() {
 
   const picks = toPicks(state)
   const actionCaps = sections.filter((k): k is ActionCapKey => k !== 'measurement')
+  const hasMeasurement = sections.includes('measurement')
+
   const overallIntelligence =
     actionCaps.length > 0
       ? actionCaps.reduce((sum, k) => {
@@ -53,8 +72,103 @@ function Scorecard() {
     ? (getThreeWeakestLevers(weakestCap, picks)[0]?.name ?? null)
     : null
 
+  const nrrResult = state.nrrInputs && !state.nrrCalculatorSkipped
+    ? computeNRR(state.nrrInputs)
+    : null
+
+  const { sentences: recSentences, cta } = composeRecommendation(state.selectedCapabilities, picks)
+
+  // ── Build PDFParams from derived data ──────────────────────────────────────
+
+  const buildPDFParams = useCallback((): PDFParams => {
+    const capList: PDFCapabilityData[] = sections.map((capKey) => {
+      const cap = getCapability(capKey)!
+      const overall = getCapabilityOverall(capKey, picks)
+      const weakest = getThreeWeakestLevers(capKey, picks)
+        .filter((l) => l.score !== null)
+        .slice(0, 3)
+        .map((l) => ({ name: l.name, score: l.score }))
+
+      if (cap.type === 'measurement') {
+        const mCap = cap as MeasurementCapability
+        return {
+          key: capKey,
+          name: cap.name,
+          type: 'measurement',
+          overall,
+          measurementRows: mCap.levers.map((l) => {
+            const score = picks.measurement[l.id] ?? null
+            return { id: l.id, name: l.name, score, gapToL5: score !== null ? 5 - score : null }
+          }),
+          weakestLevers: weakest,
+        }
+      }
+
+      const aCap = cap as ActionCapability
+      const capPicks = picks[capKey as ActionCapKey]
+      return {
+        key: capKey,
+        name: cap.name,
+        type: 'action',
+        overall,
+        leverRows: aCap.levers.map((l) => {
+          const dimPicks = capPicks[l.id] ?? {}
+          const avg = getLeverAvg(dimPicks)
+          return {
+            id: l.id,
+            name: l.name,
+            dimScores: {
+              People: dimPicks['People'] ?? null,
+              Process: dimPicks['Process'] ?? null,
+              Technology: dimPicks['Technology'] ?? null,
+              Data: dimPicks['Data'] ?? null,
+            },
+            leverAvg: avg,
+            gapToL5: avg !== null ? 5 - avg : null,
+          }
+        }),
+        weakestLevers: weakest,
+      }
+    })
+
+    const crossCapDims: PDFCrossCapRow[] =
+      actionCaps.length >= 2
+        ? DIMS.map((dim) => {
+            const avg = getCrossCapDimAvg(actionCaps, dim, picks)
+            const capScores: Record<string, number | null> = {}
+            actionCaps.forEach((k) => {
+              capScores[k] = getActionDimAvg(k, dim, picks[k])
+            })
+            return { dim, capScores, avg }
+          })
+        : []
+
+    return {
+      email: state.email ?? '',
+      generatedAt: state.completedAt ?? new Date().toISOString(),
+      nrr: nrrResult?.nrr ?? null,
+      grr: nrrResult?.grr ?? null,
+      reportingMaturity: hasMeasurement ? getMeasurementOverall(picks.measurement) : null,
+      overallIntelligence,
+      distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
+      capabilities: capList,
+      crossCapDims,
+      actionCapNames: actionCaps.map((k) => getCapability(k)?.name ?? k),
+      recommendationSentences: recSentences,
+      ctaText: cta.text,
+      ctaUrl: cta.url,
+    }
+  }, [state, picks, sections, actionCaps, hasMeasurement, overallIntelligence, nrrResult, recSentences, cta])
+
+  // ── Completion trigger: fires once on first scorecard view ─────────────────
+
   useEffect(() => {
     if (!allSectionsComplete) return
+    if (state.completedAt !== null) return  // already sent
+
+    const completedAt = new Date().toISOString()
+    dispatch({ type: 'SET_COMPLETED_AT', completedAt })
+
     track({
       name: 'scorecard_viewed',
       props: {
@@ -63,6 +177,112 @@ function Scorecard() {
         weakest_capability: weakestLeverName,
       },
     })
+
+    const scorecardPayload: ScorecardPayload = {
+      overallIntelligence,
+      nrr: nrrResult?.nrr ?? null,
+      grr: nrrResult?.grr ?? null,
+      reportingMaturity: hasMeasurement ? getMeasurementOverall(picks.measurement) : null,
+      distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
+      weakestCapability: weakestCap ? (getCapability(weakestCap)?.name ?? null) : null,
+      capabilitiesSelected: sections,
+      scope: deriveScorecardScope(sections),
+      capabilityOveralls: Object.fromEntries(
+        sections.map((k) => [k, getCapabilityOverall(k, picks)]),
+      ),
+      recommendationSentences: recSentences,
+    }
+
+    // Generate PDF, then POST to server (don't block UI)
+    const pdfParams: PDFParams = {
+      email: state.email ?? '',
+      generatedAt: completedAt,
+      nrr: scorecardPayload.nrr,
+      grr: scorecardPayload.grr,
+      reportingMaturity: scorecardPayload.reportingMaturity,
+      overallIntelligence,
+      distanceToL5: scorecardPayload.distanceToL5,
+      capabilities: sections.map((capKey) => {
+        const cap = getCapability(capKey)!
+        const overall = getCapabilityOverall(capKey, picks)
+        const weakest = getThreeWeakestLevers(capKey, picks)
+          .filter((l) => l.score !== null)
+          .slice(0, 3)
+          .map((l) => ({ name: l.name, score: l.score }))
+
+        if (cap.type === 'measurement') {
+          const mCap = cap as MeasurementCapability
+          return {
+            key: capKey,
+            name: cap.name,
+            type: 'measurement' as const,
+            overall,
+            measurementRows: mCap.levers.map((l) => {
+              const score = picks.measurement[l.id] ?? null
+              return { id: l.id, name: l.name, score, gapToL5: score !== null ? 5 - score : null }
+            }),
+            weakestLevers: weakest,
+          }
+        }
+        const aCap = cap as ActionCapability
+        const capPicks = picks[capKey as ActionCapKey]
+        return {
+          key: capKey,
+          name: cap.name,
+          type: 'action' as const,
+          overall,
+          leverRows: aCap.levers.map((l) => {
+            const dimPicks = capPicks[l.id] ?? {}
+            const avg = getLeverAvg(dimPicks)
+            return {
+              id: l.id,
+              name: l.name,
+              dimScores: {
+                People: dimPicks['People'] ?? null,
+                Process: dimPicks['Process'] ?? null,
+                Technology: dimPicks['Technology'] ?? null,
+                Data: dimPicks['Data'] ?? null,
+              },
+              leverAvg: avg,
+              gapToL5: avg !== null ? 5 - avg : null,
+            }
+          }),
+          weakestLevers: weakest,
+        }
+      }),
+      crossCapDims: actionCaps.length >= 2
+        ? DIMS.map((dim) => {
+            const avg = getCrossCapDimAvg(actionCaps, dim, picks)
+            const capScores: Record<string, number | null> = {}
+            actionCaps.forEach((k) => { capScores[k] = getActionDimAvg(k, dim, picks[k]) })
+            return { dim, capScores, avg }
+          })
+        : [],
+      actionCapNames: actionCaps.map((k) => getCapability(k)?.name ?? k),
+      recommendationSentences: recSentences,
+      ctaText: cta.text,
+      ctaUrl: cta.url,
+    }
+
+    ;(async () => {
+      try {
+        const blob = generateScorecardPDF(pdfParams)
+        const pdfBase64 = await getPDFBase64(blob)
+        await completeSession({
+          sessionId: state.sessionId,
+          contactId: state.contactId,
+          email: state.email ?? '',
+          completedAt,
+          scorecard: scorecardPayload,
+          pdfBase64,
+        })
+        console.log('[scorecard] completeSession succeeded')
+      } catch (err) {
+        // Don't block user — they're already on the scorecard
+        console.warn('[scorecard] completeSession failed (will not retry client-side):', err)
+      }
+    })()
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -73,6 +293,25 @@ function Scorecard() {
   function handleRestart() {
     dispatch({ type: 'RESET_ALL' })
     navigate('/')
+  }
+
+  async function handleDownloadPDF() {
+    setPdfDownloading(true)
+    try {
+      const params = buildPDFParams()
+      const blob = generateScorecardPDF(params)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const dateStr = new Date().toISOString().split('T')[0]
+      const safeEmail = (state.email ?? 'unknown').replace(/[^a-z0-9]/gi, '_')
+      a.href = url
+      a.download = `NRR_Scorecard_${safeEmail}_${dateStr}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      track({ name: 'pdf_downloaded', props: {} })
+    } finally {
+      setPdfDownloading(false)
+    }
   }
 
   return (
@@ -143,8 +382,20 @@ function Scorecard() {
         {/* Recommendation block */}
         <RecommendationBlock />
 
+        {/* Download PDF */}
+        <div className="flex justify-center mb-8">
+          <button
+            type="button"
+            onClick={handleDownloadPDF}
+            disabled={pdfDownloading}
+            className="bg-brand-blue hover:bg-blue-700 disabled:opacity-60 text-white font-semibold text-sm px-8 py-3 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-2"
+          >
+            {pdfDownloading ? 'Generating PDF…' : 'Download PDF Report'}
+          </button>
+        </div>
+
         {/* Restart */}
-        <div className="text-center mt-4">
+        <div className="text-center">
           <button
             type="button"
             onClick={handleRestart}

@@ -41,6 +41,7 @@ export interface AssessmentState {
     pricing: Record<string, Record<string, number | null>>
   }
   completedSections: string[]
+  completedAt: string | null
 }
 
 export type AssessmentAction =
@@ -53,6 +54,7 @@ export type AssessmentAction =
   | { type: 'SET_PICK_MEASUREMENT'; id: string; level: number | null }
   | { type: 'SET_PICK_ACTION'; capKey: ActionCapKey; leverId: string; dim: string; level: number | null }
   | { type: 'COMPLETE_SECTION'; section: string }
+  | { type: 'SET_COMPLETED_AT'; completedAt: string }
   | { type: 'RESET_ALL' }
 
 // ─── Default state ────────────────────────────────────────────────────────────
@@ -73,6 +75,7 @@ export const defaultState: AssessmentState = {
     pricing: {},
   },
   completedSections: [],
+  completedAt: null,
 }
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -134,6 +137,10 @@ export function assessmentReducer(state: AssessmentState, action: AssessmentActi
     case 'COMPLETE_SECTION':
       if (state.completedSections.includes(action.section)) return state
       return { ...state, completedSections: [...state.completedSections, action.section] }
+
+    case 'SET_COMPLETED_AT':
+      if (state.completedAt !== null) return state
+      return { ...state, completedAt: action.completedAt }
 
     case 'RESET_ALL':
       return defaultState
