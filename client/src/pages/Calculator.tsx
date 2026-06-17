@@ -245,13 +245,13 @@ function Calculator() {
         nrr_band: finalResult.band?.label ?? 'unknown',
       },
     })
-    navigate('/selection')
+    navigate('/diagnostic')
   }
 
   function handleSkipConfirm() {
     dispatch({ type: 'SKIP_NRR_CALCULATOR' })
     track({ name: 'nrr_calculator_skipped', props: {} })
-    navigate('/selection')
+    navigate('/diagnostic')
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ import {
 } from 'react'
 import type { NRRMode } from './nrr'
 
-const STORAGE_KEY = 'loremex_assessment_state_v3'
+const STORAGE_KEY = 'loremex_assessment_state_v4'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,14 +28,30 @@ export interface NRRInputs {
   churn: number | null
 }
 
+export interface DiagnosticAnswers {
+  q2_retention: string | null
+  q2_text: string
+  q3_data: string | null
+  q3_text: string
+  q4_team: string | null
+  q4_text: string
+  q5_priority: string | null
+  q5_text: string
+  q6_arr: string | null
+  q6_text: string
+  q7_anything_else: string
+}
+
 export interface AssessmentState {
-  schemaVersion: 3
+  schemaVersion: 4
   sessionId: string | null
   contactId: string | null
   email: string | null
   consent: boolean
   nrrInputs: NRRInputs | null
   nrrCalculatorSkipped: boolean
+  diagnosticAnswers: DiagnosticAnswers | null
+  preSelectedCapabilities: CapKey[]
   selectedCapabilities: CapKey[]
   picks: {
     measurement: Record<string, number | null>
@@ -54,6 +70,8 @@ export type AssessmentAction =
   | { type: 'SET_NRR_MODE'; mode: NRRMode }
   | { type: 'SKIP_NRR_CALCULATOR' }
   | { type: 'RESET_NRR_CALCULATOR' }
+  | { type: 'SET_DIAGNOSTIC_ANSWER'; field: keyof DiagnosticAnswers; value: string | null }
+  | { type: 'SET_PRE_SELECTED_CAPABILITIES'; capabilities: CapKey[] }
   | { type: 'SET_SELECTED_CAPABILITIES'; capabilities: CapKey[] }
   | { type: 'SET_PICK_MEASUREMENT'; id: string; level: number | null }
   | { type: 'SET_PICK_ACTION'; capKey: ActionCapKey; leverId: string; dim: string; level: number | null }
@@ -64,13 +82,15 @@ export type AssessmentAction =
 // ─── Default state ────────────────────────────────────────────────────────────
 
 export const defaultState: AssessmentState = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   sessionId: null,
   contactId: null,
   email: null,
   consent: false,
   nrrInputs: null,
   nrrCalculatorSkipped: false,
+  diagnosticAnswers: null,
+  preSelectedCapabilities: [],
   selectedCapabilities: [],
   picks: {
     measurement: {},
@@ -124,6 +144,21 @@ export function assessmentReducer(state: AssessmentState, action: AssessmentActi
     case 'RESET_NRR_CALCULATOR':
       return { ...state, nrrCalculatorSkipped: false, nrrInputs: null }
 
+    case 'SET_DIAGNOSTIC_ANSWER': {
+      const current = state.diagnosticAnswers ?? {
+        q2_retention: null, q2_text: '',
+        q3_data: null, q3_text: '',
+        q4_team: null, q4_text: '',
+        q5_priority: null, q5_text: '',
+        q6_arr: null, q6_text: '',
+        q7_anything_else: '',
+      }
+      return { ...state, diagnosticAnswers: { ...current, [action.field]: action.value } }
+    }
+
+    case 'SET_PRE_SELECTED_CAPABILITIES':
+      return { ...state, preSelectedCapabilities: action.capabilities }
+
     case 'SET_SELECTED_CAPABILITIES':
       return { ...state, selectedCapabilities: action.capabilities }
 
@@ -172,8 +207,8 @@ export function loadFromStorage(): AssessmentState {
     if (!raw) return defaultState
     const parsed = JSON.parse(raw) as Partial<AssessmentState>
     // Reject any stored state with a mismatched schema version
-    if (parsed.schemaVersion !== 3) return defaultState
-    return { ...defaultState, ...parsed, schemaVersion: 3 }
+    if (parsed.schemaVersion !== 4) return defaultState
+    return { ...defaultState, ...parsed, schemaVersion: 4 }
   } catch {
     return defaultState
   }

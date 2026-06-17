@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import startSessionRouter from './routes/start-session.js'
 import completeSessionRouter from './routes/complete-session.js'
+import sendDiagnosticRouter from './routes/send-diagnostic.js'
 import { ensureCustomProperties, ensureScorecardProperties, updateContactWithScorecard } from './lib/hubspot.js'
 import { sendScorecardEmail } from './lib/email.js'
 import { hydrate, drain, persist, registerHandlers, getQueue, type RetryItem } from './lib/retryQueue.js'
@@ -34,6 +35,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/start-session', startSessionRouter)
 app.use('/api/complete-session', completeSessionRouter)
+app.use('/api/send-diagnostic', sendDiagnosticRouter)
 
 // Admin debug endpoint — gate with HUBSPOT_DEBUG_KEY header
 // WARNING: add proper auth before exposing externally

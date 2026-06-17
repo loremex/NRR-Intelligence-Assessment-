@@ -85,3 +85,54 @@ export async function completeSession(
 
   return response.json() as Promise<CompleteSessionResult>
 }
+
+// ─── Diagnostic submission ────────────────────────────────────────────────────
+
+export interface DiagnosticAnswerPayload {
+  q2: string
+  q2_label: string
+  q2_text: string
+  q3: string
+  q3_label: string
+  q3_text: string
+  q4: string
+  q4_label: string
+  q4_text: string
+  q5: string
+  q5_label: string
+  q5_text: string
+  q6: string
+  q6_label: string
+  q6_text: string
+  q7_text: string
+}
+
+export interface DiagnosticPayload {
+  sessionId: string | null
+  contactId: string | null
+  email: string
+  completedAt: string
+  verdictTitle: string
+  recommendations: [string, string, string]
+  answers: DiagnosticAnswerPayload
+}
+
+export interface DiagnosticResult {
+  hubspotUpdated: boolean
+  emailSent: boolean
+}
+
+export async function sendDiagnostic(payload: DiagnosticPayload): Promise<DiagnosticResult> {
+  const response = await fetch(`${API_BASE}/api/send-diagnostic`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({})) as { error?: string }
+    throw new Error(data.error ?? `Server error ${response.status}`)
+  }
+
+  return response.json() as Promise<DiagnosticResult>
+}

@@ -29,8 +29,13 @@ function Selection() {
     if (state.selectedCapabilities.length > 0) {
       return new Set(state.selectedCapabilities)
     }
+    if (state.preSelectedCapabilities.length > 0) {
+      return new Set(state.preSelectedCapabilities)
+    }
     return new Set(capabilities.map((c) => c.key as CapKey))
   })
+
+  const hasPreSelection = state.preSelectedCapabilities.length > 0 && state.selectedCapabilities.length === 0
 
   if (!state.email) return <Navigate to="/" replace />
 
@@ -103,6 +108,17 @@ function Selection() {
 
       {/* Main */}
       <main id="main-content" className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+        {/* Pre-selection notice from diagnostic */}
+        {hasPreSelection && (
+          <div className="flex gap-3 items-start p-4 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
+            <span aria-hidden="true" className="shrink-0 text-base">&#x2139;</span>
+            <p>
+              Based on your diagnostic, we've pre-selected the most relevant capabilities for you.
+              Feel free to adjust before continuing.
+            </p>
+          </div>
+        )}
+
         {/* Capability cards */}
         <div className="grid sm:grid-cols-2 gap-4">
           {capabilities.map((cap) => {

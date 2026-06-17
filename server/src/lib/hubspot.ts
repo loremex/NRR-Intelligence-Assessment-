@@ -206,6 +206,51 @@ export async function updateContactWithScorecard(
   )
 }
 
+export interface DiagnosticAnswerData {
+  q2: string; q2_label: string; q2_text: string
+  q3: string; q3_label: string; q3_text: string
+  q4: string; q4_label: string; q4_text: string
+  q5: string; q5_label: string; q5_text: string
+  q6: string; q6_label: string; q6_text: string
+  q7_text: string
+}
+
+export interface DiagnosticData {
+  completedAt: string
+  verdictTitle: string
+  answers: DiagnosticAnswerData
+}
+
+export async function updateContactWithDiagnostic(
+  contactId: string,
+  data: DiagnosticData,
+): Promise<void> {
+  const properties: Record<string, string> = {
+    nrr_diagnostic_completed_at: new Date(data.completedAt).getTime().toString(),
+    nrr_diagnostic_verdict: data.verdictTitle,
+    nrr_diagnostic_q2_choice: data.answers.q2,
+    nrr_diagnostic_q3_choice: data.answers.q3,
+    nrr_diagnostic_q4_choice: data.answers.q4,
+    nrr_diagnostic_q5_choice: data.answers.q5,
+    nrr_diagnostic_q6_choice: data.answers.q6,
+  }
+
+  if (data.answers.q2_text) properties.nrr_diagnostic_q2_text = data.answers.q2_text
+  if (data.answers.q3_text) properties.nrr_diagnostic_q3_text = data.answers.q3_text
+  if (data.answers.q4_text) properties.nrr_diagnostic_q4_text = data.answers.q4_text
+  if (data.answers.q5_text) properties.nrr_diagnostic_q5_text = data.answers.q5_text
+  if (data.answers.q6_text) properties.nrr_diagnostic_q6_text = data.answers.q6_text
+  if (data.answers.q7_text) properties.nrr_diagnostic_q7_text = data.answers.q7_text
+
+  await withRetry(() =>
+    axios.patch(
+      `${HUBSPOT_API_BASE}/crm/v3/objects/contacts/${contactId}`,
+      { properties },
+      { headers: getHeaders() },
+    ),
+  )
+}
+
 // ─── Shared property bootstrap helper ────────────────────────────────────────
 
 async function ensurePropertiesFromList(props: HubSpotPropertyDef[]): Promise<void> {

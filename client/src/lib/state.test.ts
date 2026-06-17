@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { assessmentReducer, defaultState, loadFromStorage, type CapKey } from './state'
 
-const STORAGE_KEY = 'loremex_assessment_state_v3'
+const STORAGE_KEY = 'loremex_assessment_state_v4'
 
 describe('assessmentReducer', () => {
   it('default state has correct shape', () => {
-    expect(defaultState.schemaVersion).toBe(3)
+    expect(defaultState.schemaVersion).toBe(4)
     expect(defaultState.email).toBeNull()
     expect(defaultState.sessionId).toBeNull()
     expect(defaultState.selectedCapabilities).toEqual([])
+    expect(defaultState.preSelectedCapabilities).toEqual([])
+    expect(defaultState.diagnosticAnswers).toBeNull()
     expect(defaultState.nrrCalculatorSkipped).toBe(false)
     expect(defaultState.completedSections).toEqual([])
   })
@@ -143,6 +145,24 @@ describe('assessmentReducer', () => {
     expect(s3.completedSections).toHaveLength(2)
   })
 
+  it('SET_DIAGNOSTIC_ANSWER initialises diagnosticAnswers and sets field', () => {
+    const state = assessmentReducer(defaultState, {
+      type: 'SET_DIAGNOSTIC_ANSWER',
+      field: 'q2_retention',
+      value: 'churn',
+    })
+    expect(state.diagnosticAnswers?.q2_retention).toBe('churn')
+    expect(state.diagnosticAnswers?.q3_data).toBeNull()
+  })
+
+  it('SET_PRE_SELECTED_CAPABILITIES sets array', () => {
+    const state = assessmentReducer(defaultState, {
+      type: 'SET_PRE_SELECTED_CAPABILITIES',
+      capabilities: ['retention', 'measurement'],
+    })
+    expect(state.preSelectedCapabilities).toEqual(['retention', 'measurement'])
+  })
+
   it('RESET_ALL returns to exact default state', () => {
     const withData = assessmentReducer(defaultState, {
       type: 'SET_EMAIL',
@@ -167,11 +187,11 @@ describe('loadFromStorage', () => {
     expect(state).toEqual(defaultState)
   })
 
-  it('hydrates valid v3 state from localStorage', () => {
+  it('hydrates valid v4 state from localStorage', () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        schemaVersion: 3,
+        schemaVersion: 4,
         email: 'test@example.com',
         consent: true,
         sessionId: 'sess-xyz',
@@ -180,27 +200,27 @@ describe('loadFromStorage', () => {
     const state = loadFromStorage()
     expect(state.email).toBe('test@example.com')
     expect(state.sessionId).toBe('sess-xyz')
-    expect(state.schemaVersion).toBe(3)
+    expect(state.schemaVersion).toBe(4)
   })
 
-  it('resets on v2 state (old schema)', () => {
+  it('resets on v3 state (old schema)', () => {
     localStorage.setItem(
-      'loremex_assessment_state_v2',
-      JSON.stringify({ schemaVersion: 2, email: 'old@example.com' }),
+      'loremex_assessment_state_v3',
+      JSON.stringify({ schemaVersion: 3, email: 'old@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBeNull()
-    expect(state.schemaVersion).toBe(3)
+    expect(state.schemaVersion).toBe(4)
   })
 
-  it('resets on version mismatch in v3 key', () => {
+  it('resets on version mismatch in v4 key', () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 2, email: 'old@example.com' }),
+      JSON.stringify({ schemaVersion: 3, email: 'old@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBeNull()
-    expect(state.schemaVersion).toBe(3)
+    expect(state.schemaVersion).toBe(4)
   })
 
   it('resets on malformed JSON', () => {
@@ -212,7 +232,7 @@ describe('loadFromStorage', () => {
   it('fills missing fields with defaults during hydration', () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 3, email: 'partial@example.com' }),
+      JSON.stringify({ schemaVersion: 4, email: 'partial@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBe('partial@example.com')
