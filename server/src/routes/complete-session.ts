@@ -20,6 +20,19 @@ interface ScorecardPayload {
   recommendationSentences: string[]
 }
 
+interface EVEmailScenario {
+  label: string
+  ppDelta: number
+  ppCapped: boolean
+  evUplift: number
+}
+
+interface EVEmailData {
+  scenarios: EVEmailScenario[]
+  topOfMarketMessage: string | null
+  startingMRRFormatted: string
+}
+
 interface CompleteSessionBody {
   sessionId: string | null
   contactId: string | null
@@ -27,6 +40,7 @@ interface CompleteSessionBody {
   completedAt: string
   scorecard: ScorecardPayload
   pdfBase64: string
+  evUplift?: EVEmailData | null
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -53,7 +67,7 @@ router.post('/', async (req, res) => {
     return
   }
 
-  const { contactId, email, completedAt, scorecard, pdfBase64 } = req.body
+  const { contactId, email, completedAt, scorecard, pdfBase64, evUplift } = req.body
 
   const scorecardData: ScorecardData = {
     completedAt,
@@ -81,7 +95,7 @@ router.post('/', async (req, res) => {
     contactId
       ? updateContactWithScorecard(contactId, scorecardData)
       : Promise.reject(new Error('No contactId — cannot update HubSpot')),
-    sendScorecardEmail({ to: email, pdfBase64, scorecardSummary }),
+    sendScorecardEmail({ to: email, pdfBase64, scorecardSummary, evUplift: evUplift ?? null }),
   ])
 
   const hubspotUpdated = hubspotResult.status === 'fulfilled'
@@ -98,7 +112,7 @@ router.post('/', async (req, res) => {
   if (emailResult.status === 'rejected' || !emailSent) {
     const reason = emailResult.status === 'rejected' ? emailResult.reason : 'send returned success=false'
     console.error('[complete-session] Email send failed:', reason)
-    enqueue({ type: 'email', payload: { to: email, pdfBase64, scorecardSummary } })
+    enqueue({ type: 'email', payload: { to: email, pdfBase64, scorecardSummary, evUplift: evUplift ?? null } })
   }
 
   res.json({ hubspotUpdated, emailSent })

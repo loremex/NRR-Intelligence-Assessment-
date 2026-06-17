@@ -5,10 +5,12 @@ import { getCapability } from '../lib/rubric'
 import { getCapabilityOverall, getThreeWeakestLevers, scoreToColor, DIMS, getActionDimAvg, getCrossCapDimAvg, getMeasurementOverall, getLeverAvg, type AllPicks } from '../lib/scoring'
 import { track } from '../lib/analytics'
 import { composeRecommendation } from '../lib/recommendations'
-import { computeNRR } from '../lib/nrr'
+import { computeNRR, formatCurrency } from '../lib/nrr'
+import { computeEVUplift } from '../lib/evUplift'
 import type { PDFParams, PDFCapabilityData, PDFCrossCapRow } from '../lib/pdfGenerator'
 import { completeSession, type ScorecardPayload } from '../lib/api'
 import { HeadlineTiles } from '../components/scorecard/HeadlineTiles'
+import { EVUpliftCard } from '../components/scorecard/EVUpliftCard'
 import { CrossCapDimView } from '../components/scorecard/CrossCapDimView'
 import { MeasurementHeatmap } from '../components/scorecard/MeasurementHeatmap'
 import { ActionHeatmap } from '../components/scorecard/ActionHeatmap'
@@ -76,11 +78,19 @@ function Scorecard() {
     ? computeNRR(state.nrrInputs)
     : null
 
+  const evResult = nrrResult
+    ? computeEVUplift(state.nrrInputs?.startingMRR ?? null, nrrResult.nrr)
+    : null
+
   const { sentences: recSentences, cta } = composeRecommendation(state.selectedCapabilities, picks)
 
   // ── Build PDFParams from derived data ──────────────────────────────────────
 
   const buildPDFParams = useCallback((): PDFParams => {
+    const localEVResult = nrrResult
+      ? computeEVUplift(state.nrrInputs?.startingMRR ?? null, nrrResult.nrr)
+      : null
+
     const capList: PDFCapabilityData[] = sections.map((capKey) => {
       const cap = getCapability(capKey)!
       const overall = getCapabilityOverall(capKey, picks)
@@ -153,6 +163,15 @@ function Scorecard() {
       reportingMaturity: hasMeasurement ? getMeasurementOverall(picks.measurement) : null,
       overallIntelligence,
       distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
+      evUplift: localEVResult ? {
+        scenarios: localEVResult.scenarios.map((s) => ({
+          label: s.label,
+          ppDelta: s.ppDelta,
+          ppCapped: s.ppCapped,
+          evUplift: s.evUplift,
+        })),
+        topOfMarketMessage: localEVResult.topOfMarketMessage,
+      } : null,
       capabilities: capList,
       crossCapDims,
       actionCapNames: actionCaps.map((k) => getCapability(k)?.name ?? k),
@@ -206,6 +225,15 @@ function Scorecard() {
       reportingMaturity: scorecardPayload.reportingMaturity,
       overallIntelligence,
       distanceToL5: scorecardPayload.distanceToL5,
+      evUplift: evResult ? {
+        scenarios: evResult.scenarios.map((s) => ({
+          label: s.label,
+          ppDelta: s.ppDelta,
+          ppCapped: s.ppCapped,
+          evUplift: s.evUplift,
+        })),
+        topOfMarketMessage: evResult.topOfMarketMessage,
+      } : null,
       capabilities: sections.map((capKey) => {
         const cap = getCapability(capKey)!
         const overall = getCapabilityOverall(capKey, picks)
@@ -280,6 +308,16 @@ function Scorecard() {
           completedAt,
           scorecard: scorecardPayload,
           pdfBase64,
+          evUplift: evResult ? {
+            scenarios: evResult.scenarios.map((s) => ({
+              label: s.label,
+              ppDelta: s.ppDelta,
+              ppCapped: s.ppCapped,
+              evUplift: s.evUplift,
+            })),
+            topOfMarketMessage: evResult.topOfMarketMessage,
+            startingMRRFormatted: formatCurrency(state.nrrInputs?.startingMRR ?? 0),
+          } : null,
         })
         console.log('[scorecard] completeSession succeeded')
       } catch (err) {
@@ -351,6 +389,9 @@ function Scorecard() {
 
         {/* Headline tiles */}
         <HeadlineTiles />
+
+        {/* EV Uplift card (only when NRR was calculated) */}
+        <EVUpliftCard />
 
         {/* Cross-cap dimension view (only if ≥2 action caps) */}
         <CrossCapDimView />

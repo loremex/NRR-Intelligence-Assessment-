@@ -17,6 +17,19 @@ interface ScorecardPayload {
   recommendationSentences: string[]
 }
 
+interface EVEmailScenario {
+  label: string
+  ppDelta: number
+  ppCapped: boolean
+  evUplift: number
+}
+
+interface EVEmailData {
+  scenarios: EVEmailScenario[]
+  topOfMarketMessage: string | null
+  startingMRRFormatted: string
+}
+
 interface CompleteSessionBody {
   sessionId: string | null
   contactId: string | null
@@ -24,6 +37,7 @@ interface CompleteSessionBody {
   completedAt: string
   scorecard: ScorecardPayload
   pdfBase64: string
+  evUplift?: EVEmailData | null
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -53,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid request body' })
   }
 
-  const { contactId, email, completedAt, scorecard, pdfBase64 } = req.body
+  const { contactId, email, completedAt, scorecard, pdfBase64, evUplift } = req.body
 
   const scorecardData: ScorecardData = {
     completedAt,
@@ -84,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     contactId
       ? updateContactWithScorecard(contactId, scorecardData)
       : Promise.reject(new Error('No contactId — cannot update HubSpot')),
-    sendScorecardEmail({ to: email, pdfBase64, scorecardSummary }),
+    sendScorecardEmail({ to: email, pdfBase64, scorecardSummary, evUplift: evUplift ?? null }),
   ])
 
   const hubspotUpdated = hubspotResult.status === 'fulfilled'

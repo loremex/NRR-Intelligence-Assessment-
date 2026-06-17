@@ -48,6 +48,13 @@ export interface PDFCrossCapRow {
   avg: number | null
 }
 
+export interface PDFEVScenario {
+  label: string
+  ppDelta: number
+  ppCapped: boolean
+  evUplift: number
+}
+
 export interface PDFParams {
   email: string
   generatedAt: string
@@ -58,6 +65,7 @@ export interface PDFParams {
   reportingMaturity: number | null
   overallIntelligence: number | null
   distanceToL5: number | null
+  evUplift: { scenarios: PDFEVScenario[]; topOfMarketMessage: string | null } | null
   capabilities: PDFCapabilityData[]
   crossCapDims: PDFCrossCapRow[]
   actionCapNames: string[]
@@ -92,6 +100,16 @@ function fmtScore(n: number | null): string {
 
 function fmtPct(n: number | null): string {
   return n !== null ? `${(n * 100).toFixed(1)}%` : '—'
+}
+
+function fmtEV(value: number): string {
+  if (value >= 1_000_000) {
+    const m = value / 1_000_000
+    const mStr = m % 1 === 0 ? m.toFixed(0) : parseFloat(m.toFixed(1)).toString()
+    return `+$${mStr}M`
+  }
+  if (value >= 100_000) return `+$${Math.round(value / 1_000)}K`
+  return `+$${Math.round(value).toLocaleString('en-US')}`
 }
 
 function navBar(doc: jsPDF, rightText = ''): void {
@@ -185,6 +203,48 @@ export function generateScorecardPDF(params: PDFParams): Blob {
       y,
     )
     y += 6
+  }
+
+  // EV Uplift section
+  if (params.evUplift && params.evUplift.scenarios.length > 0) {
+    doc.setFontSize(10)
+    doc.setTextColor(...NAVY)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Enterprise Value Impact', 14, y)
+    doc.setFont('helvetica', 'normal')
+    y += 5
+
+    if (params.evUplift.topOfMarketMessage) {
+      const msgLines = doc.splitTextToSize(params.evUplift.topOfMarketMessage, pageWidth - 28) as string[]
+      doc.setFontSize(7.5)
+      doc.setTextColor(...GRAY)
+      doc.text(msgLines, 14, y)
+      y += msgLines.length * 4 + 3
+      const s = params.evUplift.scenarios[0]
+      if (s) {
+        doc.setFontSize(8)
+        doc.setTextColor(...DARK)
+        doc.text(`${s.label}: ${fmtEV(s.evUplift)} EV preserved`, 14, y)
+        y += 5
+      }
+    } else {
+      for (const s of params.evUplift.scenarios) {
+        const ppStr = `+${s.ppDelta}pp${s.ppCapped ? '+' : ''}`
+        doc.setFontSize(8)
+        doc.setTextColor(...DARK)
+        doc.text(`${s.label} (${ppStr}): ${fmtEV(s.evUplift)}`, 14, y)
+        y += 5
+      }
+    }
+
+    doc.setFontSize(6.5)
+    doc.setTextColor(...GRAY)
+    doc.text(
+      'Indicative — based on public SaaS valuation benchmarks. Real EV varies by growth rate, margin, and market conditions.',
+      14,
+      y,
+    )
+    y += 8
   }
 
   // Cross-cap dim view

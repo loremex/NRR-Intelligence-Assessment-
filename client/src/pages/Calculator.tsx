@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAssessmentState, type NRRField } from '../lib/state'
 import { computeNRR, formatCurrency, formatPercent, type NRRMode, type NRRResult } from '../lib/nrr'
+import { computeEVUplift, formatEVUplift } from '../lib/evUplift'
 import { track } from '../lib/analytics'
 import { Badge } from '../components/calculator/Badge'
 import { ConfirmModal } from '../components/shared/ConfirmModal'
@@ -580,6 +581,56 @@ function Calculator() {
                   </p>
                 )}
               </div>
+
+              {/* EV Uplift section */}
+              {(() => {
+                const evResult = computeEVUplift(parsedStart, result.nrr)
+                if (!evResult) return null
+                return (
+                  <div className="border-t border-slate-200 pt-4">
+                    <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">
+                      Enterprise Value Impact
+                    </p>
+                    <p className="text-[10px] text-slate-400 mb-3 leading-relaxed">
+                      Based on your Starting MRR at the tiered NRR-to-EV multiple.
+                    </p>
+
+                    {evResult.topOfMarketMessage ? (
+                      <p className="text-xs text-text-dark italic leading-relaxed mb-3">
+                        {evResult.topOfMarketMessage}
+                      </p>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      {evResult.scenarios.map((s) => (
+                        <div
+                          key={`${s.targetNRR}-${s.label}`}
+                          className="flex items-center justify-between gap-2 text-xs"
+                        >
+                          <span className="text-text-dark leading-snug">{s.label}</span>
+                          <span className="flex items-center gap-1.5 shrink-0">
+                            {s.ppDelta > 0 && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700 tabular-nums">
+                                +{s.ppDelta}pp{s.ppCapped ? '+' : ''}
+                              </span>
+                            )}
+                            <span className="font-bold text-green-700 tabular-nums">
+                              {evResult.topOfMarketMessage
+                                ? `${formatEVUplift(s.evUplift)} preserved`
+                                : formatEVUplift(s.evUplift)}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p className="text-[9px] text-slate-400 italic mt-3 leading-relaxed">
+                      Indicative — based on public SaaS valuation benchmarks. Real EV varies by
+                      growth rate, margin, and market conditions.
+                    </p>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </div>
