@@ -49,6 +49,7 @@ export function HeadlineTiles() {
         value={fmt(nrrVal, true)}
         color={nrrVal !== null ? (nrrVal >= 1.0 ? '#059669' : '#DC2626') : undefined}
         tooltip="Net Revenue Retention from your NRR Calculator inputs"
+        footnote={nrrVal !== null ? 'Based on your most recent quarter' : undefined}
       />
       <HeadlineTile
         label="GRR"

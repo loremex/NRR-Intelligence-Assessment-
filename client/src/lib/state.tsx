@@ -10,23 +10,23 @@ import {
   type Dispatch,
 } from 'react'
 
-const STORAGE_KEY = 'loremex_assessment_state_v1'
+const STORAGE_KEY = 'loremex_assessment_state_v2'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type NRRField = 'startingMRR' | 'expansionMRR' | 'contractionMRR' | 'churnMRR'
+export type NRRField = 'startingMRR' | 'expansionPct' | 'contractionPct' | 'churnPct'
 export type ActionCapKey = 'retention' | 'expansion' | 'pricing'
 export type CapKey = 'measurement' | ActionCapKey
 
 export interface NRRInputs {
-  startingMRR: number | null
-  expansionMRR: number | null
-  contractionMRR: number | null
-  churnMRR: number | null
+  startingMRR?: number | null
+  expansionPct: number | null
+  contractionPct: number | null
+  churnPct: number | null
 }
 
 export interface AssessmentState {
-  schemaVersion: 1
+  schemaVersion: 2
   sessionId: string | null
   contactId: string | null
   email: string | null
@@ -60,7 +60,7 @@ export type AssessmentAction =
 // ─── Default state ────────────────────────────────────────────────────────────
 
 export const defaultState: AssessmentState = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   sessionId: null,
   contactId: null,
   email: null,
@@ -92,10 +92,9 @@ export function assessmentReducer(state: AssessmentState, action: AssessmentActi
       return {
         ...state,
         nrrInputs: {
-          startingMRR: null,
-          expansionMRR: null,
-          contractionMRR: null,
-          churnMRR: null,
+          expansionPct: null,
+          contractionPct: null,
+          churnPct: null,
           ...state.nrrInputs,
           [action.field]: action.value,
         },
@@ -155,8 +154,8 @@ export function loadFromStorage(): AssessmentState {
     if (!raw) return defaultState
     const parsed = JSON.parse(raw) as Partial<AssessmentState>
     // Reject any stored state with a mismatched schema version
-    if (parsed.schemaVersion !== 1) return defaultState
-    return { ...defaultState, ...parsed, schemaVersion: 1 }
+    if (parsed.schemaVersion !== 2) return defaultState
+    return { ...defaultState, ...parsed, schemaVersion: 2 }
   } catch {
     return defaultState
   }

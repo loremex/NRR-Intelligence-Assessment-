@@ -3,9 +3,10 @@ interface HeadlineTileProps {
   value: string
   color?: string
   tooltip?: string
+  footnote?: string
 }
 
-export function HeadlineTile({ label, value, color, tooltip }: HeadlineTileProps) {
+export function HeadlineTile({ label, value, color, tooltip, footnote }: HeadlineTileProps) {
   return (
     <div
       className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-1"
@@ -21,6 +22,9 @@ export function HeadlineTile({ label, value, color, tooltip }: HeadlineTileProps
       >
         {value}
       </span>
+      {footnote && (
+        <span className="text-[9px] text-slate-400 leading-tight mt-0.5">{footnote}</span>
+      )}
     </div>
   )
 }

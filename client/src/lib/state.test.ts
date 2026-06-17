@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { assessmentReducer, defaultState, loadFromStorage, type CapKey } from './state'
 
-const STORAGE_KEY = 'loremex_assessment_state_v1'
+const STORAGE_KEY = 'loremex_assessment_state_v2'
 
 describe('assessmentReducer', () => {
   it('default state has correct shape', () => {
-    expect(defaultState.schemaVersion).toBe(1)
+    expect(defaultState.schemaVersion).toBe(2)
     expect(defaultState.email).toBeNull()
     expect(defaultState.sessionId).toBeNull()
     expect(defaultState.selectedCapabilities).toEqual([])
@@ -43,33 +43,33 @@ describe('assessmentReducer', () => {
   it('SET_NRR_INPUT initialises nrrInputs and sets field', () => {
     const state = assessmentReducer(defaultState, {
       type: 'SET_NRR_INPUT',
-      field: 'startingMRR',
-      value: 1_000_000,
+      field: 'expansionPct',
+      value: 18,
     })
-    expect(state.nrrInputs?.startingMRR).toBe(1_000_000)
-    expect(state.nrrInputs?.expansionMRR).toBeNull()
+    expect(state.nrrInputs?.expansionPct).toBe(18)
+    expect(state.nrrInputs?.contractionPct).toBeNull()
   })
 
   it('SET_NRR_INPUT merges into existing nrrInputs', () => {
     const s1 = assessmentReducer(defaultState, {
       type: 'SET_NRR_INPUT',
-      field: 'startingMRR',
-      value: 500_000,
+      field: 'expansionPct',
+      value: 18,
     })
     const s2 = assessmentReducer(s1, {
       type: 'SET_NRR_INPUT',
-      field: 'expansionMRR',
-      value: 50_000,
+      field: 'churnPct',
+      value: 6,
     })
-    expect(s2.nrrInputs?.startingMRR).toBe(500_000)
-    expect(s2.nrrInputs?.expansionMRR).toBe(50_000)
+    expect(s2.nrrInputs?.expansionPct).toBe(18)
+    expect(s2.nrrInputs?.churnPct).toBe(6)
   })
 
   it('SKIP_NRR_CALCULATOR sets flag and clears inputs', () => {
     const withInputs = assessmentReducer(defaultState, {
       type: 'SET_NRR_INPUT',
-      field: 'startingMRR',
-      value: 500_000,
+      field: 'expansionPct',
+      value: 18,
     })
     const state = assessmentReducer(withInputs, { type: 'SKIP_NRR_CALCULATOR' })
     expect(state.nrrCalculatorSkipped).toBe(true)
@@ -144,11 +144,11 @@ describe('loadFromStorage', () => {
     expect(state).toEqual(defaultState)
   })
 
-  it('hydrates valid v1 state from localStorage', () => {
+  it('hydrates valid v2 state from localStorage', () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        schemaVersion: 1,
+        schemaVersion: 2,
         email: 'test@example.com',
         consent: true,
         sessionId: 'sess-xyz',
@@ -157,17 +157,27 @@ describe('loadFromStorage', () => {
     const state = loadFromStorage()
     expect(state.email).toBe('test@example.com')
     expect(state.sessionId).toBe('sess-xyz')
-    expect(state.schemaVersion).toBe(1)
+    expect(state.schemaVersion).toBe(2)
   })
 
-  it('resets on schemaVersion mismatch', () => {
+  it('resets on schemaVersion mismatch (old v1 data)', () => {
+    localStorage.setItem(
+      'loremex_assessment_state_v1',
+      JSON.stringify({ schemaVersion: 1, email: 'old@example.com' }),
+    )
+    const state = loadFromStorage()
+    expect(state.email).toBeNull()
+    expect(state.schemaVersion).toBe(2)
+  })
+
+  it('resets on schemaVersion mismatch (wrong version number)', () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ schemaVersion: 0, email: 'old@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBeNull()
-    expect(state.schemaVersion).toBe(1)
+    expect(state.schemaVersion).toBe(2)
   })
 
   it('resets on malformed JSON', () => {
@@ -177,10 +187,9 @@ describe('loadFromStorage', () => {
   })
 
   it('fills missing fields with defaults during hydration', () => {
-    // Simulate older storage that lacks newer fields
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 1, email: 'partial@example.com' }),
+      JSON.stringify({ schemaVersion: 2, email: 'partial@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBe('partial@example.com')

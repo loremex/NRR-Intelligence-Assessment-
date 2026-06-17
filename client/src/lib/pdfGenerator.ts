@@ -53,6 +53,7 @@ export interface PDFParams {
   generatedAt: string
   nrr: number | null
   grr: number | null
+  netMovement: number | null
   reportingMaturity: number | null
   overallIntelligence: number | null
   distanceToL5: number | null
@@ -166,6 +167,20 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     doc.setFont('helvetica', 'normal')
   })
   y += 24
+
+  // Net Movement + disclaimer (only when NRR was calculated)
+  if (params.netMovement !== null) {
+    const nm = params.netMovement
+    const nmStr = nm > 0 ? `+${(nm * 100).toFixed(1)}%` : `${(nm * 100).toFixed(1)}%`
+    doc.setFontSize(7.5)
+    doc.setTextColor(...GRAY)
+    doc.text(
+      `Net Movement: ${nmStr}  ·  NRR figures based on quarterly percentages entered by user`,
+      14,
+      y,
+    )
+    y += 6
+  }
 
   // Cross-cap dim view
   if (params.crossCapDims.length > 0 && params.actionCapNames.length >= 2) {

@@ -1,27 +1,30 @@
 import { useState, useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAssessmentState, type NRRField } from '../lib/state'
-import { computeNRR, formatCurrency, formatPercent, type NRRResult } from '../lib/nrr'
+import { computeNRR, formatPercent, type NRRResult } from '../lib/nrr'
 import { track } from '../lib/analytics'
 import { Badge } from '../components/calculator/Badge'
 import { ConfirmModal } from '../components/shared/ConfirmModal'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function stripFormatting(val: string): string {
-  return val.replace(/\D/g, '')
+function parsePctField(val: string): number | null {
+  const stripped = val.replace(/[^0-9.]/g, '')
+  if (!stripped) return null
+  const n = parseFloat(stripped)
+  return isNaN(n) ? null : n
 }
 
-function parseField(val: string): number | null {
-  const stripped = stripFormatting(val)
+function parseDollarField(val: string): number | null {
+  const stripped = val.replace(/\D/g, '')
   if (!stripped) return null
   return parseInt(stripped, 10)
 }
 
 function displayNetMovement(n: number | null): string {
   if (n === null) return '—'
-  if (n > 0) return `+${formatCurrency(n)}`
-  return formatCurrency(n)
+  const pct = (n * 100).toFixed(1)
+  return n > 0 ? `+${pct}%` : `${pct}%`
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -43,7 +46,7 @@ function InfoTip({ text }: { text: string }) {
         ?
       </button>
       {visible && (
-        <div className="absolute bottom-full left-0 mb-2 z-20 w-60 bg-navy text-white text-xs rounded-lg p-3 shadow-lg pointer-events-none">
+        <div className="absolute bottom-full left-0 mb-2 z-20 w-64 bg-navy text-white text-xs rounded-lg p-3 shadow-lg pointer-events-none">
           {text}
           <div className="absolute top-full left-3 border-4 border-transparent border-t-navy" />
         </div>
@@ -69,70 +72,79 @@ function ResultTile({ label, value, valueClass = 'text-navy', sub }: ResultTileP
   )
 }
 
+// ─── Field config ──────────────────────────────────────────────────────────────
+
+type FieldType = 'pct' | 'dollar'
+
 const FIELD_META: Record<
   NRRField,
-  { label: string; tooltip: string; placeholder: string }
+  { label: string; tooltip: string; placeholder: string; type: FieldType; optional?: boolean }
 > = {
+  expansionPct: {
+    label: 'Expansion MRR',
+    tooltip:
+      'Positive recurring revenue added within retained accounts — upsells, seat adds, usage overages, tier upgrades. Enter as % of period-opening MRR.',
+    placeholder: '0',
+    type: 'pct',
+  },
+  contractionPct: {
+    label: 'Contraction MRR',
+    tooltip:
+      'Negative recurring revenue delta within retained accounts — downgrades, seat reductions. Excludes churned accounts. Enter as % of period-opening MRR.',
+    placeholder: '0',
+    type: 'pct',
+  },
+  churnPct: {
+    label: 'Churn MRR',
+    tooltip:
+      'Full logo cancellations — accounts that reduced to $0 MRR. Enter as % of period-opening MRR.',
+    placeholder: '0',
+    type: 'pct',
+  },
   startingMRR: {
     label: 'Starting MRR',
     tooltip:
-      'MRR from accounts active in both the baseline and current period. Excludes new logos acquired this period.',
+      'Period-opening MRR from your retained-account cohort (excludes new logos). Optional — used for context only and does not affect NRR or GRR.',
     placeholder: '1,000,000',
-  },
-  expansionMRR: {
-    label: 'Expansion MRR',
-    tooltip:
-      'Positive recurring revenue delta within retained accounts (upgrades, seat adds, usage growth, tier-ups).',
-    placeholder: '0',
-  },
-  contractionMRR: {
-    label: 'Contraction MRR',
-    tooltip:
-      'Negative recurring revenue delta within retained accounts (downgrades, seat reductions, tier-downs). Excludes churned accounts.',
-    placeholder: '0',
-  },
-  churnMRR: {
-    label: 'Churn MRR',
-    tooltip: 'Full logo loss to $0 within retained-cohort accounts.',
-    placeholder: '0',
+    type: 'dollar',
+    optional: true,
   },
 }
 
-const FIELD_ORDER: NRRField[] = ['startingMRR', 'expansionMRR', 'contractionMRR', 'churnMRR']
+const FIELD_ORDER: NRRField[] = ['expansionPct', 'contractionPct', 'churnPct', 'startingMRR']
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 function Calculator() {
   const navigate = useNavigate()
   const [state, dispatch] = useAssessmentState()
+  const [showAssumptions, setShowAssumptions] = useState(false)
 
   // All hooks must run unconditionally before any early return.
   const [values, setValues] = useState<Record<NRRField, string>>(() => {
     const inputs = state.nrrInputs
-    if (!inputs) return { startingMRR: '', expansionMRR: '', contractionMRR: '', churnMRR: '' }
+    if (!inputs) return { startingMRR: '', expansionPct: '', contractionPct: '', churnPct: '' }
     return {
-      startingMRR: inputs.startingMRR !== null ? inputs.startingMRR.toLocaleString('en-US') : '',
-      expansionMRR:
-        inputs.expansionMRR !== null ? inputs.expansionMRR.toLocaleString('en-US') : '',
-      contractionMRR:
-        inputs.contractionMRR !== null ? inputs.contractionMRR.toLocaleString('en-US') : '',
-      churnMRR: inputs.churnMRR !== null ? inputs.churnMRR.toLocaleString('en-US') : '',
+      startingMRR: inputs.startingMRR != null ? inputs.startingMRR.toLocaleString('en-US') : '',
+      expansionPct: inputs.expansionPct !== null ? inputs.expansionPct.toString() : '',
+      contractionPct: inputs.contractionPct !== null ? inputs.contractionPct.toString() : '',
+      churnPct: inputs.churnPct !== null ? inputs.churnPct.toString() : '',
     }
   })
 
   const [errors, setErrors] = useState<Record<NRRField, string>>({
     startingMRR: '',
-    expansionMRR: '',
-    contractionMRR: '',
-    churnMRR: '',
+    expansionPct: '',
+    contractionPct: '',
+    churnPct: '',
   })
 
   const [result, setResult] = useState<NRRResult>(() =>
     computeNRR({
       startingMRR: state.nrrInputs?.startingMRR ?? null,
-      expansionMRR: state.nrrInputs?.expansionMRR ?? null,
-      contractionMRR: state.nrrInputs?.contractionMRR ?? null,
-      churnMRR: state.nrrInputs?.churnMRR ?? null,
+      expansionPct: state.nrrInputs?.expansionPct ?? null,
+      contractionPct: state.nrrInputs?.contractionPct ?? null,
+      churnPct: state.nrrInputs?.churnPct ?? null,
     }),
   )
 
@@ -143,10 +155,10 @@ function Calculator() {
     const timer = setTimeout(() => {
       setResult(
         computeNRR({
-          startingMRR: parseField(values.startingMRR),
-          expansionMRR: parseField(values.expansionMRR),
-          contractionMRR: parseField(values.contractionMRR),
-          churnMRR: parseField(values.churnMRR),
+          startingMRR: parseDollarField(values.startingMRR),
+          expansionPct: parsePctField(values.expansionPct),
+          contractionPct: parsePctField(values.contractionPct),
+          churnPct: parsePctField(values.churnPct),
         }),
       )
     }, 100)
@@ -156,35 +168,46 @@ function Calculator() {
   // Gate: redirect if no email (hooks already called above)
   if (!state.email) return <Navigate to="/" replace />
 
-  const parsedStart = parseField(values.startingMRR)
-  const canContinue = parsedStart !== null && parsedStart > 0 && !errors.startingMRR
-  const showZeroHint =
-    values.startingMRR !== '' && parsedStart === 0 && !errors.startingMRR
+  const parsedExp = parsePctField(values.expansionPct)
+  const parsedCon = parsePctField(values.contractionPct)
+  const parsedChurn = parsePctField(values.churnPct)
+  const canContinue =
+    parsedExp !== null &&
+    parsedCon !== null &&
+    parsedChurn !== null &&
+    !errors.expansionPct &&
+    !errors.contractionPct &&
+    !errors.churnPct
 
   function handleChange(field: NRRField, val: string) {
-    const stripped = stripFormatting(val)
+    const meta = FIELD_META[field]
+    const stripped =
+      meta.type === 'pct' ? val.replace(/[^0-9.]/g, '') : val.replace(/\D/g, '')
     setValues((prev) => ({ ...prev, [field]: stripped }))
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }))
   }
 
   function handleFocus(field: NRRField) {
-    const n = parseField(values[field])
-    if (n !== null) {
-      setValues((prev) => ({ ...prev, [field]: n.toString() }))
+    if (FIELD_META[field].type === 'dollar') {
+      const n = parseDollarField(values[field])
+      if (n !== null) setValues((prev) => ({ ...prev, [field]: n.toString() }))
     }
   }
 
   function handleBlur(field: NRRField) {
     const val = values[field]
-    const n = parseField(val)
+    const meta = FIELD_META[field]
+    const n = meta.type === 'pct' ? parsePctField(val) : parseDollarField(val)
 
     let errMsg = ''
     if (val !== '' && n === null) errMsg = 'Enter a valid number'
 
     setErrors((prev) => ({ ...prev, [field]: errMsg }))
 
-    if (n !== null) {
-      setValues((prev) => ({ ...prev, [field]: n.toLocaleString('en-US') }))
+    if (n !== null && !errMsg) {
+      if (meta.type === 'dollar') {
+        setValues((prev) => ({ ...prev, [field]: n.toLocaleString('en-US') }))
+      }
       dispatch({ type: 'SET_NRR_INPUT', field, value: n })
     } else if (!val) {
       dispatch({ type: 'SET_NRR_INPUT', field, value: null })
@@ -193,10 +216,10 @@ function Calculator() {
 
   function handleContinue() {
     const finalResult = computeNRR({
-      startingMRR: parseField(values.startingMRR),
-      expansionMRR: parseField(values.expansionMRR),
-      contractionMRR: parseField(values.contractionMRR),
-      churnMRR: parseField(values.churnMRR),
+      startingMRR: parseDollarField(values.startingMRR),
+      expansionPct: parsePctField(values.expansionPct),
+      contractionPct: parsePctField(values.contractionPct),
+      churnPct: parsePctField(values.churnPct),
     })
     track({
       name: 'nrr_calculator_completed',
@@ -249,11 +272,12 @@ function Calculator() {
             NRR Calculator
           </p>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-navy mb-3">
-            Calculate Your NRR
+            What's your NRR?
           </h1>
           <p className="text-text-dark max-w-2xl text-sm sm:text-base leading-relaxed">
-            Enter your most recent reporting period's MRR components. Skip if you don't have these
-            numbers at hand — your scorecard still works without them.
+            Enter rate percentages from your most recent reporting quarter. NRR and GRR are
+            calculated from the three components below — no starting MRR needed. Skip if you don't
+            have these figures at hand.
           </p>
         </div>
       </header>
@@ -264,9 +288,57 @@ function Calculator() {
           {/* ── Left: Input card ─────────────────────────────────────────── */}
           <div className="lg:col-span-3">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8">
+
+              {/* Collapsible disclosure */}
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={() => setShowAssumptions((v) => !v)}
+                  className="flex items-center gap-2 text-sm text-slate-500 hover:text-text-dark transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue rounded"
+                  aria-expanded={showAssumptions}
+                >
+                  <span
+                    className={`inline-block transition-transform duration-150 ${showAssumptions ? 'rotate-90' : ''}`}
+                    aria-hidden="true"
+                  >
+                    ▶
+                  </span>
+                  Calculation Assumptions
+                </button>
+                {showAssumptions && (
+                  <div className="mt-3 p-4 bg-slate-50 rounded-lg text-sm text-slate-600 leading-relaxed space-y-2">
+                    <p>
+                      These figures assume a single reporting period (quarter or month) across your
+                      retained-account cohort.
+                    </p>
+                    <ul className="space-y-1 pl-2">
+                      <li>
+                        <strong>Expansion:</strong> upsells, seat adds, usage overages, or tier
+                        upgrades — as % of period-opening MRR
+                      </li>
+                      <li>
+                        <strong>Contraction:</strong> downgrades or seat reductions within retained
+                        accounts — excludes churned accounts
+                      </li>
+                      <li>
+                        <strong>Churn:</strong> full logo cancellations (MRR → $0) — as % of
+                        period-opening MRR
+                      </li>
+                    </ul>
+                    <p className="text-slate-500 text-xs pt-1">
+                      NRR = 100% + Expansion% − Contraction% − Churn%
+                      <br />
+                      GRR = 100% − Contraction% − Churn%
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Fields */}
               <div className="grid sm:grid-cols-2 gap-5">
                 {FIELD_ORDER.map((field) => {
                   const meta = FIELD_META[field]
+                  const isPct = meta.type === 'pct'
                   return (
                     <div key={field}>
                       <label
@@ -274,22 +346,29 @@ function Calculator() {
                         className="flex items-center text-sm font-medium text-text-dark mb-1.5"
                       >
                         {meta.label}
-                        {field === 'startingMRR' && (
+                        {!meta.optional && (
                           <span className="text-red-500 ml-0.5" aria-hidden="true">
                             *
+                          </span>
+                        )}
+                        {meta.optional && (
+                          <span className="ml-1.5 text-xs text-slate-400 font-normal">
+                            (optional)
                           </span>
                         )}
                         <InfoTip text={meta.tooltip} />
                       </label>
 
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
-                          $
-                        </span>
+                        {!isPct && (
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
+                            $
+                          </span>
+                        )}
                         <input
                           id={field}
                           type="text"
-                          inputMode="numeric"
+                          inputMode={isPct ? 'decimal' : 'numeric'}
                           autoComplete="off"
                           value={values[field]}
                           placeholder={meta.placeholder}
@@ -297,19 +376,18 @@ function Calculator() {
                           onFocus={() => handleFocus(field)}
                           onBlur={() => handleBlur(field)}
                           aria-invalid={!!errors[field]}
-                          aria-describedby={
-                            errors[field]
-                              ? `${field}-error`
-                              : showZeroHint && field === 'startingMRR'
-                                ? `${field}-hint`
-                                : undefined
-                          }
-                          className={`w-full pl-7 pr-4 py-3 rounded-lg border text-text-dark placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-colors text-sm ${
+                          aria-describedby={errors[field] ? `${field}-error` : undefined}
+                          className={`w-full ${isPct ? 'pr-8 pl-4' : 'pl-7 pr-4'} py-3 rounded-lg border text-text-dark placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-colors text-sm ${
                             errors[field]
                               ? 'border-red-400 bg-red-50'
                               : 'border-slate-300 bg-white'
                           }`}
                         />
+                        {isPct && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
+                            %
+                          </span>
+                        )}
                       </div>
 
                       {errors[field] && (
@@ -317,18 +395,18 @@ function Calculator() {
                           {errors[field]}
                         </p>
                       )}
-                      {showZeroHint && field === 'startingMRR' && !errors[field] && (
-                        <p id={`${field}-hint`} className="mt-1 text-xs text-amber-600">
-                          Starting MRR must be greater than 0
-                        </p>
-                      )}
                     </div>
                   )
                 })}
               </div>
 
+              {/* Required fields note */}
+              <p className="mt-4 text-xs text-slate-400">
+                * Required — enter 0 if this component is zero for your period.
+              </p>
+
               {/* Actions */}
-              <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <button
                   type="button"
                   onClick={() => setShowSkipModal(true)}
