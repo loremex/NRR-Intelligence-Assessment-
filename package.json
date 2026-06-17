@@ -1,0 +1,20 @@
+{
+  "name": "loremex-assessment",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["client", "server"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "npm --workspace client run dev",
+    "dev:server": "npm --workspace server run dev",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "npm --workspace client run build",
+    "build:server": "npm --workspace server run build",
+    "lint": "npm --workspace client run lint && npm --workspace server run lint",
+    "typecheck": "npm --workspace client run typecheck && npm --workspace server run typecheck",
+    "test": "npm --workspace client run test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
