@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useSession, type NRRField } from '../lib/session'
+import { useAssessmentState, type NRRField } from '../lib/state'
 import { computeNRR, formatCurrency, formatPercent, type NRRResult } from '../lib/nrr'
 import { track } from '../lib/analytics'
 import { Badge } from '../components/calculator/Badge'
@@ -104,7 +104,7 @@ const FIELD_ORDER: NRRField[] = ['startingMRR', 'expansionMRR', 'contractionMRR'
 
 function Calculator() {
   const navigate = useNavigate()
-  const { state, dispatch } = useSession()
+  const [state, dispatch] = useAssessmentState()
 
   // All hooks must run unconditionally before any early return.
   const [values, setValues] = useState<Record<NRRField, string>>(() => {

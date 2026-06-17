@@ -1,11 +1,6 @@
-import rubricData from '../content/rubric.json'
+import { getNRRBands, type NRRBand } from './rubric'
 
-export type NRRBand = {
-  threshold: number
-  label: string
-  color: string
-  description: string
-}
+export type { NRRBand }
 
 export interface NRRInputs {
   startingMRR: number | null
@@ -21,7 +16,7 @@ export interface NRRResult {
   band: NRRBand | null
 }
 
-const bands = rubricData.nrrBands as NRRBand[]
+const bands = getNRRBands()
 
 export function computeNRR(inputs: NRRInputs): NRRResult {
   const { startingMRR, expansionMRR, contractionMRR, churnMRR } = inputs

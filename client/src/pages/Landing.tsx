@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isValidEmail } from '../lib/validation'
-import { useSession } from '../lib/session'
+import { useAssessmentState } from '../lib/state'
 import { startSession } from '../lib/api'
 import { track } from '../lib/analytics'
 
@@ -74,7 +74,7 @@ function SampleScorecard() {
 
 function Landing() {
   const navigate = useNavigate()
-  const { dispatch } = useSession()
+  const [, dispatch] = useAssessmentState()
   const formSectionRef = useRef<HTMLDivElement>(null)
 
   const [email, setEmail] = useState('')
@@ -127,13 +127,8 @@ function Landing() {
 
     try {
       const result = await startSession({ email: email.trim().toLowerCase(), consent: true })
-      dispatch({
-        type: 'SET_SESSION',
-        email: email.trim().toLowerCase(),
-        consent: true,
-        sessionId: result.sessionId,
-        contactId: result.contactId,
-      })
+      dispatch({ type: 'SET_EMAIL', email: email.trim().toLowerCase(), consent: true })
+      dispatch({ type: 'SET_SESSION', sessionId: result.sessionId, contactId: result.contactId })
       track({ name: 'session_started', props: { session_id: result.sessionId } })
       navigate('/calculator')
     } catch (err) {
