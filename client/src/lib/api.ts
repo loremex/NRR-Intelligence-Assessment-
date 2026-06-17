@@ -1,4 +1,6 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001'
+// In dev: VITE_API_BASE_URL is set (or Vite proxy handles /api → localhost:3001).
+// In production (Vercel): same-origin api/ functions, so no base needed.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
 
 export interface StartSessionResult {
   sessionId: string

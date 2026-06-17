@@ -25,8 +25,9 @@ const PARAMS = {
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.RESEND_API_KEY = 'test-key'
-  process.env.RESEND_FROM_EMAIL = 'onboarding@resend.dev'
-  process.env.RESEND_REPLY_TO = 'hello@loremex.ai'
+  process.env.RESEND_FROM_EMAIL = 'ls@loremex.ai'
+  process.env.RESEND_FROM_NAME = 'Loremex Team'
+  process.env.RESEND_REPLY_TO = 'ls@loremex.com'
   process.env.VITE_BASE_URL = 'http://localhost:5173'
 })
 
@@ -49,8 +50,8 @@ describe('sendScorecardEmail', () => {
     sendFn.mockResolvedValueOnce({ data: { id: 'msg-3' }, error: null })
     await sendScorecardEmail(PARAMS)
     const callArg = sendFn.mock.calls[0]?.[0] as { from: string; replyTo: string; subject: string }
-    expect(callArg?.from).toBe('onboarding@resend.dev')
-    expect(callArg?.replyTo).toBe('hello@loremex.ai')
+    expect(callArg?.from).toBe('Loremex Team <ls@loremex.ai>')
+    expect(callArg?.replyTo).toBe('ls@loremex.com')
     expect(callArg?.subject).toBe('Your NRR Intelligence Scorecard')
   })
 

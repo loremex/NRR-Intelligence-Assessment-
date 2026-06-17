@@ -3,12 +3,14 @@
 // so the server can attach the same bytes to the Resend email — no server-side PDF generation needed.
 
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 
-// Extend jsPDF type to include autoTable added by the plugin
+// jspdf-autotable v5 no longer auto-attaches to the jsPDF prototype in ESM
+// environments (window.jsPDF is never set in Vite modules). We use the
+// standalone functional API: autoTable(doc, options) instead of doc.autoTable().
+// lastAutoTable is still set on the doc instance by the plugin.
 declare module 'jspdf' {
   interface jsPDF {
-    autoTable: (options: Record<string, unknown>) => jsPDF
     lastAutoTable: { finalY: number }
   }
 }
@@ -186,7 +188,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
       row.avg !== null ? (5 - row.avg).toFixed(2) : '—',
     ])
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [head],
       body,
@@ -219,12 +221,12 @@ export function generateScorecardPDF(params: PDFParams): Blob {
         const cell = scoreColor(r.score)
         return [
           { content: `${r.id} — ${r.name}` },
-          { content: r.score ?? '—', styles: { fillColor: cell, halign: 'center' } },
-          { content: r.gapToL5 !== null ? r.gapToL5.toFixed(0) : '—', styles: { halign: 'center' } },
+          { content: r.score ?? '—', styles: { fillColor: cell, halign: 'center' as const } },
+          { content: r.gapToL5 !== null ? r.gapToL5.toFixed(0) : '—', styles: { halign: 'center' as const } },
         ]
       })
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: y,
         head: [['Category', 'Score', 'Gap to L5']],
         body,
@@ -238,13 +240,13 @@ export function generateScorecardPDF(params: PDFParams): Blob {
         { content: `${r.id} — ${r.name}` },
         ...DIMS.map((d) => {
           const score = r.dimScores[d] ?? null
-          return { content: score !== null ? String(score) : '—', styles: { fillColor: scoreColor(score), halign: 'center' } }
+          return { content: score !== null ? String(score) : '—', styles: { fillColor: scoreColor(score), halign: 'center' as const } }
         }),
-        { content: r.leverAvg !== null ? r.leverAvg.toFixed(2) : '—', styles: { fillColor: scoreColor(r.leverAvg), halign: 'center', fontStyle: 'bold' } },
-        { content: r.gapToL5 !== null ? r.gapToL5.toFixed(2) : '—', styles: { halign: 'center' } },
+        { content: r.leverAvg !== null ? r.leverAvg.toFixed(2) : '—', styles: { fillColor: scoreColor(r.leverAvg), halign: 'center' as const, fontStyle: 'bold' as const } },
+        { content: r.gapToL5 !== null ? r.gapToL5.toFixed(2) : '—', styles: { halign: 'center' as const } },
       ])
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: y,
         head: [['Lever', ...DIMS, 'Avg', 'Gap']],
         body,

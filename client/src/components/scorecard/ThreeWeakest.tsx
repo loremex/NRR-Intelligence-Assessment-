@@ -13,9 +13,9 @@ export function ThreeWeakest({ capabilityKey, picks }: ThreeWeakestProps) {
 
   return (
     <div className="mt-4">
-      <p className="text-xs text-slate-500 uppercase tracking-widest font-medium mb-2">
+      <h3 className="text-xs text-slate-500 uppercase tracking-widest font-medium mb-2">
         3 Highest-Impact Levers to Address
-      </p>
+      </h3>
       <div className="flex flex-col gap-2">
         {levers.map((lever, i) => (
           <div

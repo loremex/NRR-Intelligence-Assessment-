@@ -6,7 +6,7 @@ import { getCapabilityOverall, getThreeWeakestLevers, scoreToColor, DIMS, getAct
 import { track } from '../lib/analytics'
 import { composeRecommendation } from '../lib/recommendations'
 import { computeNRR } from '../lib/nrr'
-import { generateScorecardPDF, getPDFBase64, type PDFParams, type PDFCapabilityData, type PDFCrossCapRow } from '../lib/pdfGenerator'
+import type { PDFParams, PDFCapabilityData, PDFCrossCapRow } from '../lib/pdfGenerator'
 import { completeSession, type ScorecardPayload } from '../lib/api'
 import { HeadlineTiles } from '../components/scorecard/HeadlineTiles'
 import { CrossCapDimView } from '../components/scorecard/CrossCapDimView'
@@ -266,6 +266,7 @@ function Scorecard() {
 
     ;(async () => {
       try {
+        const { generateScorecardPDF, getPDFBase64 } = await import('../lib/pdfGenerator')
         const blob = generateScorecardPDF(pdfParams)
         const pdfBase64 = await getPDFBase64(blob)
         await completeSession({
@@ -298,6 +299,7 @@ function Scorecard() {
   async function handleDownloadPDF() {
     setPdfDownloading(true)
     try {
+      const { generateScorecardPDF } = await import('../lib/pdfGenerator')
       const params = buildPDFParams()
       const blob = generateScorecardPDF(params)
       const url = URL.createObjectURL(blob)
@@ -316,15 +318,23 @@ function Scorecard() {
 
   return (
     <div className="min-h-screen bg-gray-light font-body">
+      {/* Skip link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-navy focus:font-semibold focus:rounded focus:ring-2 focus:ring-brand-blue"
+      >
+        Skip to main content
+      </a>
+
       {/* Nav */}
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <span className="font-display font-bold text-xl text-white tracking-tight">Loremex</span>
-          <span className="text-slate-400 text-sm">NRR Intelligence Assessment</span>
+          <span className="hidden sm:block text-slate-400 text-sm">NRR Intelligence Assessment</span>
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-6 py-12">
+      <main id="main-content" className="max-w-5xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="mb-10">
           <p className="text-brand-blue text-xs font-semibold uppercase tracking-widest mb-2">

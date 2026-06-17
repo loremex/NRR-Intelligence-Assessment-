@@ -11,8 +11,6 @@ function getResend(): Resend {
   return _resend
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface SendScorecardEmailParams {
   to: string
   pdfBase64: string
@@ -28,10 +26,8 @@ export interface SendEmailResult {
   success: boolean
 }
 
-// ─── Retry helper ─────────────────────────────────────────────────────────────
-
 function isRetryableStatus(status?: number): boolean {
-  if (!status) return true  // network error — retry
+  if (!status) return true
   return status >= 500 || status === 429
 }
 
@@ -39,7 +35,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
 
-async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 2): Promise<T> {
   let lastErr: unknown
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -49,14 +45,12 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
       if (!isRetryableStatus(status)) throw err
       lastErr = err
       if (attempt < maxAttempts) {
-        await sleep(1000 * Math.pow(2, attempt - 1))
+        await sleep(1000 * attempt)
       }
     }
   }
   throw lastErr
 }
-
-// ─── HTML template ────────────────────────────────────────────────────────────
 
 function buildEmailHtml(params: SendScorecardEmailParams, baseUrl: string, calendlyUrl: string): string {
   const { overallIntelligence, weakestCapability, recommendationSentences } = params.scorecardSummary
@@ -74,15 +68,11 @@ function buildEmailHtml(params: SendScorecardEmailParams, baseUrl: string, calen
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-
-        <!-- Header -->
         <tr>
           <td style="background:#002337;padding:20px 32px;">
             <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;font-family:Georgia,serif;">Loremex</p>
           </td>
         </tr>
-
-        <!-- Body -->
         <tr>
           <td style="padding:32px;">
             <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#002337;font-family:Georgia,serif;">
@@ -91,8 +81,6 @@ function buildEmailHtml(params: SendScorecardEmailParams, baseUrl: string, calen
             <p style="margin:0 0 24px;font-size:14px;color:#64748B;">
               Here's a summary of your assessment results.
             </p>
-
-            <!-- Summary card -->
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border-radius:8px;margin-bottom:24px;">
               <tr>
                 <td style="padding:20px;">
@@ -103,12 +91,9 @@ function buildEmailHtml(params: SendScorecardEmailParams, baseUrl: string, calen
                 </td>
               </tr>
             </table>
-
             <p style="margin:0 0 24px;font-size:14px;color:#1E293B;line-height:1.7;">
               Open the attached PDF to see your full scorecard with heatmaps and our recommendation for where to focus.
             </p>
-
-            <!-- CTA -->
             <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
               <tr>
                 <td style="background:#2563EB;border-radius:8px;padding:12px 24px;">
@@ -118,14 +103,11 @@ function buildEmailHtml(params: SendScorecardEmailParams, baseUrl: string, calen
                 </td>
               </tr>
             </table>
-
             <p style="margin:0;font-size:13px;color:#64748B;line-height:1.6;">
               Want to discuss your results? Our team helps PE-backed SaaS leaders move from L3 to L5 across these capabilities.
             </p>
           </td>
         </tr>
-
-        <!-- Footer -->
         <tr>
           <td style="padding:20px 32px;background:#F8FAFC;border-top:1px solid #E2E8F0;">
             <p style="margin:0;font-size:12px;color:#94A3B8;">
@@ -134,7 +116,6 @@ function buildEmailHtml(params: SendScorecardEmailParams, baseUrl: string, calen
             </p>
           </td>
         </tr>
-
       </table>
     </td></tr>
   </table>
@@ -142,15 +123,13 @@ function buildEmailHtml(params: SendScorecardEmailParams, baseUrl: string, calen
 </html>`
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
-
 export async function sendScorecardEmail(params: SendScorecardEmailParams): Promise<SendEmailResult> {
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'ls@loremex.ai'
   const fromName = process.env.RESEND_FROM_NAME ?? 'Loremex Team'
   const from = `${fromName} <${fromEmail}>`
   const replyTo = process.env.RESEND_REPLY_TO ?? 'ls@loremex.com'
-  const baseUrl = process.env.VITE_BASE_URL ?? 'http://localhost:5173'
-  const calendlyUrl = process.env.CALENDLY_URL ?? 'https://calendly.com/loremex/intro'
+  const baseUrl = process.env.VITE_BASE_URL ?? 'https://assessment.loremex.ai'
+  const calendlyUrl = process.env.CALENDLY_URL ?? process.env.VITE_CALENDLY_URL ?? 'https://calendly.com/loremex/intro'
 
   return withRetry(async () => {
     const resend = getResend()

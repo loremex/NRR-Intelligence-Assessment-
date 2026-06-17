@@ -21,7 +21,7 @@ export function RecommendationBlock() {
 
   return (
     <section className="mb-10">
-      <div className="bg-navy rounded-2xl p-8">
+      <div className="bg-navy rounded-2xl p-5 sm:p-8">
         <p className="text-brand-blue text-xs font-semibold uppercase tracking-widest mb-3">
           Where to focus
         </p>
@@ -41,7 +41,14 @@ export function RecommendationBlock() {
             href={cta.url}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="Book a call with Loremex (opens in new tab)"
             className="inline-block bg-brand-blue hover:bg-blue-700 text-white font-semibold text-sm px-6 py-3 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-2 focus:ring-offset-navy"
+            onClick={() => {
+              // imported inline to avoid circular dep — analytics event fires on click
+              import('../../lib/analytics').then(({ track }) => {
+                track({ name: 'book_call_clicked', props: {} })
+              }).catch(() => undefined)
+            }}
           >
             Book a call →
           </a>

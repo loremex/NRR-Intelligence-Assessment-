@@ -148,14 +148,22 @@ loremex-assessment/
 │   ├── tailwind.config.js
 │   ├── tsconfig.json
 │   └── package.json
-├── server/                              # Express + serverless functions
+├── api/                                 # Vercel serverless functions (PRODUCTION)
+│   ├── _lib/
+│   │   ├── hubspot.ts                   # HubSpot client (copy of server/src/lib, serverless-optimised)
+│   │   └── email.ts                     # Resend email (copy of server/src/lib, serverless-optimised)
+│   ├── start-session.ts                 # POST /api/start-session
+│   ├── complete-session.ts              # POST /api/complete-session
+│   └── retry-queue-status.ts            # GET  /api/retry-queue-status (stub — no disk queue in serverless)
+├── server/                              # Express server (LOCAL DEV only)
 │   ├── src/
 │   │   ├── routes/
 │   │   │   ├── start-session.ts
 │   │   │   └── complete-session.ts
 │   │   ├── lib/
-│   │   │   ├── hubspot.ts               # HubSpot client + retry logic
-│   │   │   └── resend.ts                # Email sender
+│   │   │   ├── hubspot.ts               # HubSpot client + full retry logic
+│   │   │   ├── email.ts                 # Resend email sender
+│   │   │   └── retryQueue.ts            # Disk-backed retry queue (not used in production)
 │   │   └── index.ts
 │   ├── tsconfig.json
 │   └── package.json
@@ -179,6 +187,17 @@ loremex-assessment/
 - **Never push to `main` without explicit approval from Laura.**
 - **Always run `npm run build` before commit and ensure it passes.**
 - **Subagent for file edits and git ops**: Freya (same as the website repo).
+
+## Local dev vs. production API routing
+
+| Concern | Local dev | Production (Vercel) |
+|---------|-----------|---------------------|
+| API handlers | `server/src/routes/` (Express) | `api/*.ts` (Vercel serverless) |
+| How client hits API | Vite proxy `/api → localhost:3001` | Same-origin relative `/api/...` |
+| Retry queue | Disk-backed, 5 attempts, bg worker | 2-attempt in-function only; failures logged to Vercel |
+| `VITE_API_BASE_URL` | Leave blank (Vite proxy handles it) | Leave blank (same origin) |
+
+If you change server-side logic, update BOTH `server/src/lib/` AND `api/_lib/` (they are kept in sync manually for MVP; v1.1 should refactor into a shared package).
 
 ## Sprint 1 entry point
 

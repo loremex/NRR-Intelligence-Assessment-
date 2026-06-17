@@ -69,6 +69,14 @@ function Selection() {
 
   return (
     <div className="min-h-screen bg-gray-light font-body">
+      {/* Skip link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-navy focus:font-semibold focus:rounded focus:ring-2 focus:ring-brand-blue"
+      >
+        Skip to main content
+      </a>
+
       {/* Nav */}
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -94,7 +102,7 @@ function Selection() {
       </header>
 
       {/* Main */}
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+      <main id="main-content" className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         {/* Capability cards */}
         <div className="grid sm:grid-cols-2 gap-4">
           {capabilities.map((cap) => {
@@ -104,6 +112,7 @@ function Selection() {
               <label
                 key={key}
                 htmlFor={`cap-${key}`}
+                aria-label={`${cap.name}: ${cap.tagline}`}
                 className={`flex items-start gap-4 p-5 rounded-xl border-2 bg-white cursor-pointer transition-all select-none ${
                   isSelected
                     ? 'border-navy shadow-md'

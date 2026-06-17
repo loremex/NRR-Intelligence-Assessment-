@@ -27,6 +27,9 @@ export function ConfirmModal({
   useEffect(() => {
     if (!open) return
 
+    // Capture the element that triggered the modal so we can restore focus on close.
+    const previouslyFocused = document.activeElement as HTMLElement | null
+
     // First focus lands on the secondary (cancel) button per spec.
     const id = setTimeout(() => secondaryRef.current?.focus(), 0)
 
@@ -61,6 +64,8 @@ export function ConfirmModal({
     return () => {
       clearTimeout(id)
       document.removeEventListener('keydown', handleKeyDown)
+      // Return focus to the element that opened the modal.
+      previouslyFocused?.focus()
     }
   }, [open, onClose])
 

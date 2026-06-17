@@ -54,6 +54,14 @@ function Assessment() {
 
   return (
     <div className="min-h-screen bg-gray-light font-body">
+      {/* Skip link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-navy focus:font-semibold focus:rounded focus:ring-2 focus:ring-brand-blue"
+      >
+        Skip to main content
+      </a>
+
       {/* Nav */}
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -85,7 +93,7 @@ function Assessment() {
       </header>
 
       {/* Section content */}
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main id="main-content" className="max-w-5xl mx-auto px-6 py-8">
         {currentSection === 'measurement' ? (
           <MeasurementSection onComplete={handleSectionComplete} />
         ) : (

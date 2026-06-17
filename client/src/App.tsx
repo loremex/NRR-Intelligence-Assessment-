@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AssessmentStateProvider } from './lib/state'
-import { track } from './lib/analytics'
+import { track, initAnalytics } from './lib/analytics'
 import Landing from './pages/Landing'
 import Calculator from './pages/Calculator'
 import Selection from './pages/Selection'
@@ -26,6 +26,10 @@ function PageViewTracker() {
 }
 
 function App() {
+  useEffect(() => {
+    initAnalytics()
+  }, [])
+
   return (
     <AssessmentStateProvider>
       <BrowserRouter>

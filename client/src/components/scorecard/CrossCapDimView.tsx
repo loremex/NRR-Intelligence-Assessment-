@@ -48,25 +48,28 @@ export function CrossCapDimView() {
       <p className="text-sm text-slate-500 mb-4">
         How each dimension performs across all selected action capabilities.
       </p>
+      <div className="relative">
       <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full text-sm border-collapse bg-white">
+        <table className="w-full text-sm border-collapse bg-white" aria-label="Cross-capability dimension view">
+          <caption className="sr-only">Dimension scores averaged across all selected action capabilities. Rows are dimensions; columns are individual capabilities, their average, and the gap to Level 5.</caption>
           <thead>
             <tr className="border-b border-slate-200">
-              <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+              <th scope="col" className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
                 Dimension
               </th>
               {actionCaps.map((k) => (
                 <th
                   key={k}
+                  scope="col"
                   className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap"
                 >
                   {getCapability(k)?.name ?? k}
                 </th>
               ))}
-              <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+              <th scope="col" className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
                 Dim Avg
               </th>
-              <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+              <th scope="col" className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
                 Gap to L5
               </th>
             </tr>
@@ -95,6 +98,8 @@ export function CrossCapDimView() {
             })}
           </tbody>
         </table>
+      </div>
+      <p className="mt-1 text-xs text-slate-400 text-right sm:hidden" aria-hidden="true">← scroll to see all columns →</p>
       </div>
     </section>
   )

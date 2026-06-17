@@ -1,3 +1,24 @@
+import posthog from 'posthog-js'
+
+let _initialized = false
+
+export function initAnalytics(): void {
+  const key = (import.meta.env.VITE_POSTHOG_KEY as string | undefined) ?? ''
+  if (!key) return
+  posthog.init(key, {
+    api_host: (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? 'https://us.i.posthog.com',
+    person_profiles: 'identified_only',
+    capture_pageview: false,   // we fire page_view events manually
+    capture_pageleave: false,
+  })
+  _initialized = true
+}
+
+export function identifyUser(distinctId: string, properties: { email: string }): void {
+  if (!_initialized) return
+  posthog.identify(distinctId, properties)
+}
+
 export type AnalyticsEvent =
   | { name: 'page_view'; props: { section_name: string } }
   | { name: 'email_submitted'; props: { valid: boolean } }
@@ -14,8 +35,12 @@ export type AnalyticsEvent =
 
 export function track(event: AnalyticsEvent): void {
   try {
-    console.log('[analytics]', event.name, event.props)
-    // S5: wire to Posthog or equivalent provider here
+    if (import.meta.env.DEV) {
+      console.log('[analytics]', event.name, event.props)
+    }
+    if (_initialized) {
+      posthog.capture(event.name, event.props)
+    }
   } catch {
     // Analytics must never crash the app
   }

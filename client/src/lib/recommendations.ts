@@ -12,7 +12,7 @@ import {
   type AllPicks,
 } from './scoring'
 
-const CTA_URL = 'https://calendly.com/loremex/intro'
+const CTA_URL = (import.meta.env.VITE_CALENDLY_URL as string | undefined) ?? 'https://calendly.com/loremex/intro'
 const CTA_TEXT = 'Loremex helps PE-backed SaaS leaders move from L3 to L5 across these capabilities.'
 
 export interface RecommendationResult {

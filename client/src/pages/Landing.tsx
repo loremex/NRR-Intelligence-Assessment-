@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { isValidEmail } from '../lib/validation'
 import { useAssessmentState } from '../lib/state'
 import { startSession } from '../lib/api'
-import { track } from '../lib/analytics'
+import { track, identifyUser } from '../lib/analytics'
 
 // ─── Sample scorecard data (static, for visual preview only) ───────────────
 
@@ -126,10 +126,12 @@ function Landing() {
     setSubmitError(null)
 
     try {
-      const result = await startSession({ email: email.trim().toLowerCase(), consent: true })
-      dispatch({ type: 'SET_EMAIL', email: email.trim().toLowerCase(), consent: true })
+      const normalised = email.trim().toLowerCase()
+      const result = await startSession({ email: normalised, consent: true })
+      dispatch({ type: 'SET_EMAIL', email: normalised, consent: true })
       dispatch({ type: 'SET_SESSION', sessionId: result.sessionId, contactId: result.contactId })
       track({ name: 'session_started', props: { session_id: result.sessionId } })
+      identifyUser(result.contactId ?? result.sessionId, { email: normalised })
       navigate('/calculator')
     } catch (err) {
       setIsSubmitting(false)
@@ -141,6 +143,14 @@ function Landing() {
 
   return (
     <div className="min-h-screen font-body">
+      {/* Skip link for keyboard/screen-reader users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-navy focus:font-semibold focus:rounded focus:ring-2 focus:ring-brand-blue"
+      >
+        Skip to main content
+      </a>
+
       {/* ── Nav ──────────────────────────────────────────────────────── */}
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto">
@@ -175,7 +185,7 @@ function Landing() {
           </div>
           <button
             onClick={scrollToForm}
-            className="bg-brand-blue hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-8 py-4 rounded-lg transition-colors text-base sm:text-lg"
+            className="bg-brand-blue hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-8 py-4 rounded-lg transition-colors text-base sm:text-lg focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-navy"
           >
             Start the Assessment
           </button>
@@ -220,7 +230,7 @@ function Landing() {
       </section>
 
       {/* ── Email gate ───────────────────────────────────────────────── */}
-      <section id="email-gate" className="bg-white py-20 px-6">
+      <section id="main-content" className="bg-white py-20 px-6">
         <div ref={formSectionRef} className="max-w-md mx-auto">
           <div className="text-center mb-10">
             <h2 className="font-display text-3xl font-bold text-navy mb-3">
