@@ -4,10 +4,12 @@ import { SessionProvider } from './lib/session'
 import { track } from './lib/analytics'
 import Landing from './pages/Landing'
 import Calculator from './pages/Calculator'
+import Selection from './pages/Selection'
 
 const ROUTE_NAMES: Record<string, string> = {
   '/': 'landing',
   '/calculator': 'calculator',
+  '/selection': 'selection',
 }
 
 function PageViewTracker() {
@@ -27,6 +29,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/calculator" element={<Calculator />} />
+          <Route path="/selection" element={<Selection />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
