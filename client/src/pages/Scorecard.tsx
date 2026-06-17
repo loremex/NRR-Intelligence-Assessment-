@@ -1,25 +1,25 @@
 import { useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useAssessmentState, type CapKey, type ActionCapKey } from '../lib/state'
+import { useAssessmentState, type ActionCapKey, type CapKey } from '../lib/state'
 import { getCapability } from '../lib/rubric'
+import { getCapabilityOverall, getThreeWeakestLevers, scoreToColor, type AllPicks } from '../lib/scoring'
 import { track } from '../lib/analytics'
+import { HeadlineTiles } from '../components/scorecard/HeadlineTiles'
+import { CrossCapDimView } from '../components/scorecard/CrossCapDimView'
+import { MeasurementHeatmap } from '../components/scorecard/MeasurementHeatmap'
+import { ActionHeatmap } from '../components/scorecard/ActionHeatmap'
+import { ThreeWeakest } from '../components/scorecard/ThreeWeakest'
+import { RecommendationBlock } from '../components/scorecard/RecommendationBlock'
 
 const CAP_ORDER: CapKey[] = ['measurement', 'retention', 'expansion', 'pricing']
-const DIMS = ['People', 'Process', 'Technology', 'Data'] as const
 
-function countMeasurementPicks(picks: Record<string, number | null>, leverCount: number) {
-  const answered = Object.values(picks).filter((v) => v != null).length
-  return { answered, total: leverCount }
-}
-
-function countActionPicks(picks: Record<string, Record<string, number | null>>, leverCount: number) {
-  let answered = 0
-  for (const leverPicks of Object.values(picks)) {
-    for (const dim of DIMS) {
-      if (leverPicks[dim] != null) answered++
-    }
+function toPicks(state: ReturnType<typeof useAssessmentState>[0]): AllPicks {
+  return {
+    measurement: state.picks.measurement,
+    retention: state.picks.retention,
+    expansion: state.picks.expansion,
+    pricing: state.picks.pricing,
   }
-  return { answered, total: leverCount * DIMS.length }
 }
 
 function Scorecard() {
@@ -27,15 +27,43 @@ function Scorecard() {
   const [state, dispatch] = useAssessmentState()
 
   const sections = CAP_ORDER.filter((k) => state.selectedCapabilities.includes(k))
-  const allSectionsComplete = sections.length > 0 && sections.every((s) => state.completedSections.includes(s))
+  const allSectionsComplete =
+    sections.length > 0 && sections.every((s) => state.completedSections.includes(s))
+
+  const picks = toPicks(state)
+  const actionCaps = sections.filter((k): k is ActionCapKey => k !== 'measurement')
+  const overallIntelligence =
+    actionCaps.length > 0
+      ? actionCaps.reduce((sum, k) => {
+          const o = getCapabilityOverall(k, picks)
+          return sum + (o ?? 0)
+        }, 0) / actionCaps.length
+      : null
+
+  const weakestCap = (() => {
+    if (actionCaps.length === 0) return null
+    const scored = actionCaps
+      .map((k) => ({ key: k, score: getCapabilityOverall(k, picks) }))
+      .filter((c): c is { key: ActionCapKey; score: number } => c.score !== null)
+    if (scored.length === 0) return null
+    return scored.reduce((min, c) => (c.score < min.score ? c : min)).key
+  })()
+
+  const weakestLeverName = weakestCap
+    ? (getThreeWeakestLevers(weakestCap, picks)[0]?.name ?? null)
+    : null
 
   useEffect(() => {
     if (!allSectionsComplete) return
     track({
-      name: 'assessment_completed',
-      props: { capabilities_selected: sections, overall_intelligence: null },
+      name: 'scorecard_viewed',
+      props: {
+        capabilities_selected: sections,
+        overall_intelligence: overallIntelligence,
+        weakest_capability: weakestLeverName,
+      },
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (!state.email) return <Navigate to="/" replace />
@@ -53,78 +81,70 @@ function Scorecard() {
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <span className="font-display font-bold text-xl text-white tracking-tight">Loremex</span>
-          <span className="text-slate-400 text-sm">Step 5 of 5</span>
+          <span className="text-slate-400 text-sm">NRR Intelligence Assessment</span>
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-6 py-16">
-        {/* Sprint 3 placeholder banner */}
-        <div className="text-center mb-12">
-          <p className="text-brand-blue text-xs font-semibold uppercase tracking-widest mb-3">
-            Coming in Sprint 3
+      <main className="max-w-5xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="mb-10">
+          <p className="text-brand-blue text-xs font-semibold uppercase tracking-widest mb-2">
+            Your Results
           </p>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-navy mb-4">
-            All sections complete — scorecard coming in Sprint 3
+          <h1 className="font-display text-3xl sm:text-4xl font-bold text-navy">
+            NRR Intelligence Scorecard
           </h1>
-          <p className="text-text-dark text-base max-w-xl mx-auto leading-relaxed">
-            Your answers have been saved. The full scorecard — with intelligence scores, heatmaps,
-            and your prioritised recommendation — arrives in Sprint 3.
-          </p>
         </div>
 
-        {/* Capability breakdown */}
-        <div className="space-y-4 mb-12">
-          <p className="text-xs text-slate-400 uppercase tracking-widest font-medium">
-            Your assessment summary
-          </p>
+        {/* Headline tiles */}
+        <HeadlineTiles />
 
-          {sections.map((capKey) => {
-            const cap = getCapability(capKey)
-            if (!cap) return null
+        {/* Cross-cap dimension view (only if ≥2 action caps) */}
+        <CrossCapDimView />
 
-            const { answered, total } =
-              cap.type === 'measurement'
-                ? countMeasurementPicks(state.picks.measurement, cap.levers.length)
-                : countActionPicks(
-                    state.picks[capKey as ActionCapKey],
-                    cap.levers.length,
-                  )
+        {/* Per-capability heatmaps */}
+        {sections.map((capKey) => {
+          const cap = getCapability(capKey)
+          if (!cap) return null
+          const overall = getCapabilityOverall(capKey, picks)
 
-            const pct = total > 0 ? Math.round((answered / total) * 100) : 0
-            const isFullyAnswered = answered === total
-
-            return (
-              <div
-                key={capKey}
-                className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-navy text-sm">{cap.name}</h3>
-                    {isFullyAnswered && (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                        Complete
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {answered} of {total} items answered
-                  </p>
-                  <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-brand-blue rounded-full transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-                <span className="text-lg font-bold text-navy tabular-nums shrink-0">{pct}%</span>
+          return (
+            <section key={capKey} className="mb-12">
+              <div className="flex items-center gap-3 mb-1">
+                <h2 className="font-display text-xl font-bold text-navy">{cap.name}</h2>
+                {overall !== null && (
+                  <span
+                    className="text-sm font-bold px-3 py-1 rounded-full"
+                    style={{
+                      backgroundColor: scoreToColor(overall),
+                      color: '#1E293B',
+                    }}
+                  >
+                    {overall.toFixed(2)} / 5
+                  </span>
+                )}
               </div>
-            )
-          })}
-        </div>
+              <p className="text-sm text-slate-500 mb-4">{cap.tagline}</p>
+
+              {cap.type === 'measurement' ? (
+                <MeasurementHeatmap picks={state.picks.measurement} />
+              ) : (
+                <ActionHeatmap
+                  capabilityKey={capKey as ActionCapKey}
+                  picks={state.picks[capKey as ActionCapKey]}
+                />
+              )}
+
+              <ThreeWeakest capabilityKey={capKey} picks={picks} />
+            </section>
+          )
+        })}
+
+        {/* Recommendation block */}
+        <RecommendationBlock />
 
         {/* Restart */}
-        <div className="text-center">
+        <div className="text-center mt-4">
           <button
             type="button"
             onClick={handleRestart}
