@@ -6,12 +6,14 @@ import Landing from './pages/Landing'
 import Calculator from './pages/Calculator'
 import Selection from './pages/Selection'
 import Assessment from './pages/Assessment'
+import Scorecard from './pages/Scorecard'
 
 const ROUTE_NAMES: Record<string, string> = {
   '/': 'landing',
   '/calculator': 'calculator',
   '/selection': 'selection',
   '/assessment': 'assessment',
+  '/scorecard': 'scorecard',
 }
 
 function PageViewTracker() {
@@ -33,6 +35,7 @@ function App() {
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/selection" element={<Selection />} />
           <Route path="/assessment" element={<Assessment />} />
+          <Route path="/scorecard" element={<Scorecard />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

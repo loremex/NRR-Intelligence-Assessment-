@@ -1,19 +1,60 @@
-import { Navigate } from 'react-router-dom'
-import { useAssessmentState } from '../lib/state'
+import { useState } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
+import { useAssessmentState, type CapKey, type ActionCapKey } from '../lib/state'
 import { getCapability } from '../lib/rubric'
+import { ProgressIndicator } from '../components/assessment/ProgressIndicator'
+import { MeasurementSection } from '../components/assessment/MeasurementSection'
+import { ActionCapabilitySection } from '../components/assessment/ActionCapabilitySection'
+
+const CAP_ORDER: CapKey[] = ['measurement', 'retention', 'expansion', 'pricing']
 
 function Assessment() {
-  const [state] = useAssessmentState()
+  const navigate = useNavigate()
+  const [state, dispatch] = useAssessmentState()
+
+  // Derive ordered list of sections from user's selection (preserving canonical order).
+  const sections = CAP_ORDER.filter((k) => state.selectedCapabilities.includes(k))
+
+  // Initial section: first not yet completed. All-complete → sections.length → redirect to /scorecard.
+  const getInitialIdx = () => {
+    const idx = sections.findIndex((s) => !state.completedSections.includes(s))
+    return idx === -1 ? sections.length : idx
+  }
+
+  // All hooks before any early return.
+  const [currentIdx, setCurrentIdx] = useState(getInitialIdx)
 
   if (!state.email) return <Navigate to="/" replace />
   if (state.selectedCapabilities.length === 0) return <Navigate to="/" replace />
+  if (currentIdx >= sections.length) return <Navigate to="/scorecard" replace />
 
-  const capNames = state.selectedCapabilities
-    .map((key) => getCapability(key)?.name ?? key)
-    .join(', ')
+  const currentSection = sections[currentIdx]
+  const currentCap = getCapability(currentSection)!
+
+  function handleSectionComplete() {
+    dispatch({ type: 'COMPLETE_SECTION', section: currentSection })
+    const nextIdx = currentIdx + 1
+    if (nextIdx >= sections.length) {
+      navigate('/scorecard')
+    } else {
+      setCurrentIdx(nextIdx)
+      // Scroll to top for the next section.
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  function handleBack() {
+    if (currentIdx > 0) {
+      setCurrentIdx(currentIdx - 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      navigate('/selection')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-light font-body">
+      {/* Nav */}
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <span className="font-display font-bold text-xl text-white tracking-tight">Loremex</span>
@@ -21,20 +62,38 @@ function Assessment() {
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-6 py-20 text-center">
-        <p className="text-brand-blue text-xs font-semibold uppercase tracking-widest mb-3">
-          Coming in Sprint 2
-        </p>
-        <h1 className="font-display text-3xl font-bold text-navy mb-4">
-          Assessment sections (coming in Sprint 2)
-        </h1>
-        <p className="text-text-dark mb-2">
-          You selected:{' '}
-          <span className="font-semibold text-navy">{capNames}</span>
-        </p>
-        <p className="text-sm text-slate-500">
-          Your selection has been saved. Full assessment sections arrive in Sprint 2.
-        </p>
+      {/* Progress header */}
+      <header className="bg-white border-b border-slate-200 px-6 py-5">
+        <div className="max-w-5xl mx-auto">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-text-dark mb-4 focus:outline-none focus:ring-2 focus:ring-brand-blue rounded transition-colors"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            {currentIdx === 0 ? 'Back to Capability Selection' : `Back to ${getCapability(sections[currentIdx - 1])?.name ?? 'Previous'}`}
+          </button>
+
+          <ProgressIndicator
+            currentSectionIndex={currentIdx}
+            totalSections={sections.length}
+            currentSectionName={currentCap.name}
+          />
+        </div>
+      </header>
+
+      {/* Section content */}
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        {currentSection === 'measurement' ? (
+          <MeasurementSection onComplete={handleSectionComplete} />
+        ) : (
+          <ActionCapabilitySection
+            capabilityKey={currentSection as ActionCapKey}
+            onComplete={handleSectionComplete}
+          />
+        )}
       </main>
     </div>
   )
