@@ -1,17 +1,89 @@
 import { useState, useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useAssessmentState, type DiagnosticBlockKey } from '../lib/state'
-import { DIAGNOSTIC_QUESTIONS, PRIORITY_OPTIONS, BLOCK_LABELS } from '../content/diagnosticTemplates'
+import { useAssessmentState, type DiagnosticBlockKey, type DiagnosticPriority } from '../lib/state'
 import { track } from '../lib/analytics'
+
+// ─── Inline question config ───────────────────────────────────────────────────
+
+interface QuestionConfig {
+  id: DiagnosticBlockKey
+  blockLabel: string
+  question: string
+  contextLine: string
+  options: [string, string, string, string]
+}
+
+const QUESTIONS: QuestionConfig[] = [
+  {
+    id: 'q1_reporting',
+    blockLabel: 'NRR REPORTING',
+    question: 'How confident are you to present your NRR number to the board?',
+    contextLine: 'Your NRR number is only useful if it\'s defensible. Board moments expose every gap in your measurement.',
+    options: [
+      'We\'ve punted the NRR question — finance, CS, and RevOps would each give a different number',
+      'We have one number but it takes a week to pull and I don\'t fully trust it',
+      'We have a trusted number quarterly, but board meetings sometimes catch us with stale data',
+      'Our NRR view is current, defensible, and ready for any board moment',
+    ],
+  },
+  {
+    id: 'q2_retention',
+    blockLabel: 'REVENUE RETENTION',
+    question: 'Can you detect churn risk before it shows up in cancellations?',
+    contextLine: 'By the time a customer hands in notice, the conversation is already lost. Early signal beats late heroics.',
+    options: [
+      'We usually find out at renewal — sometimes after the customer has already decided',
+      'CS has hunches based on relationship signals, but it\'s anecdotal',
+      'We have a risk-scoring layer; CS reviews flagged accounts but action is uneven',
+      'Risk signals trigger defined save plays in real time — and we measure win rates',
+    ],
+  },
+  {
+    id: 'q3_expansion',
+    blockLabel: 'REVENUE EXPANSION',
+    question: 'Is account growth a system in your company — or just your best AEs closing one-offs?',
+    contextLine: 'A handful of heroic reps can hide a missing motion. Repeatability is what investors price.',
+    options: [
+      'Expansion happens when a customer asks; we don\'t drive it',
+      'Our best reps know how to expand — the others don\'t replicate it',
+      'We have an expansion motion but coverage is uneven across the book',
+      'Expansion is a measurable engine — usage signals trigger plays that close consistently',
+    ],
+  },
+  {
+    id: 'q4_pricing',
+    blockLabel: 'PRICING OPTIMIZATION',
+    question: 'How would you assess your pricing alignment to customer value?',
+    contextLine: 'Pricing discipline is where value capture happens — or quietly leaks away.',
+    options: [
+      'We haven\'t seriously revisited pricing in years — discounting fills the gap',
+      'Our pricing isn\'t really tied to customer outcomes — it\'s based on what closes deals',
+      'We have a pricing framework but limited visibility into how it ties to the value customers actually realize',
+      'Our pricing is anchored to measurable customer outcomes — and discount discipline is enforced',
+    ],
+  },
+]
+
+interface Q5Option {
+  value: DiagnosticPriority
+  text: string
+}
+
+const Q5_OPTIONS: Q5Option[] = [
+  { value: 'retention', text: 'Reduce churn (stop the bleeding)' },
+  { value: 'expansion', text: 'Drive expansion in existing accounts' },
+  { value: 'pricing',   text: 'Fix pricing & packaging' },
+  { value: 'reporting', text: 'Build the measurement foundation first' },
+]
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 interface BlockCardProps {
   blockKey: DiagnosticBlockKey
-  block: string
+  blockLabel: string
   question: string
   contextLine: string
-  options: ReadonlyArray<{ score: 1 | 2 | 3 | 4; text: string }>
+  options: readonly string[]
   selectedScore: 1 | 2 | 3 | 4 | null
   freeText: string | null
   onSelect: (score: 1 | 2 | 3 | 4) => void
@@ -21,7 +93,7 @@ interface BlockCardProps {
 
 function BlockCard({
   blockKey,
-  block,
+  blockLabel,
   question,
   contextLine,
   options,
@@ -42,7 +114,7 @@ function BlockCard({
         </span>
         <div className="flex-1 min-w-0">
           <span className="inline-block mb-2 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest uppercase text-brand-blue bg-blue-50">
-            {block}
+            {blockLabel}
           </span>
           <p className="font-bold text-navy text-base leading-snug mb-1">{question}</p>
           <p className="text-sm text-slate-500 leading-relaxed">{contextLine}</p>
@@ -50,26 +122,29 @@ function BlockCard({
       </div>
 
       <div className="space-y-2 pl-10">
-        {options.map((opt) => (
-          <label
-            key={opt.score}
-            className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all select-none ${
-              selectedScore === opt.score
-                ? 'border-navy bg-slate-50 ring-1 ring-navy'
-                : 'border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            <input
-              type="radio"
-              name={fieldName}
-              value={opt.score}
-              checked={selectedScore === opt.score}
-              onChange={() => onSelect(opt.score)}
-              className="mt-0.5 accent-navy shrink-0"
-            />
-            <span className="text-sm text-text-dark leading-relaxed">{opt.text}</span>
-          </label>
-        ))}
+        {options.map((text, i) => {
+          const score = (i + 1) as 1 | 2 | 3 | 4
+          return (
+            <label
+              key={i}
+              className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all select-none ${
+                selectedScore === score
+                  ? 'border-navy bg-slate-50 ring-1 ring-navy'
+                  : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <input
+                type="radio"
+                name={fieldName}
+                value={i}
+                checked={selectedScore === score}
+                onChange={() => onSelect(score)}
+                className="mt-0.5 accent-navy shrink-0"
+              />
+              <span className="text-sm text-text-dark leading-relaxed">{text}</span>
+            </label>
+          )
+        })}
 
         {selectedScore && (
           <div className="pt-1">
@@ -123,8 +198,6 @@ function DiagnosticQuestions() {
     navigate('/diagnostic-result')
   }
 
-  const blockKeys: DiagnosticBlockKey[] = ['q1_reporting', 'q2_retention', 'q3_expansion', 'q4_pricing']
-
   return (
     <div className="min-h-screen bg-gray-light font-body">
       <a
@@ -157,22 +230,21 @@ function DiagnosticQuestions() {
       </header>
 
       <main id="main-content" className="max-w-3xl mx-auto px-6 py-8 space-y-4">
-        {/* Q1-Q4: capability blocks */}
-        {DIAGNOSTIC_QUESTIONS.map((q, i) => {
-          const blockKey = blockKeys[i]
-          const blockAnswer = answers?.[blockKey]
+        {/* Q1–Q4: capability blocks */}
+        {QUESTIONS.map((q, i) => {
+          const blockAnswer = answers?.[q.id]
           return (
             <BlockCard
-              key={q.block}
-              blockKey={blockKey}
-              block={BLOCK_LABELS[q.block]}
+              key={q.id}
+              blockKey={q.id}
+              blockLabel={q.blockLabel}
               question={q.question}
               contextLine={q.contextLine}
               options={q.options}
               selectedScore={blockAnswer?.choice ?? null}
               freeText={blockAnswer?.freeText ?? null}
-              onSelect={(score) => dispatch({ type: 'SET_DIAGNOSTIC_BLOCK_CHOICE', block: blockKey, choice: score })}
-              onTextChange={(text) => dispatch({ type: 'SET_DIAGNOSTIC_BLOCK_TEXT', block: blockKey, text })}
+              onSelect={(score) => dispatch({ type: 'SET_DIAGNOSTIC_BLOCK_CHOICE', block: q.id, choice: score })}
+              onTextChange={(text) => dispatch({ type: 'SET_DIAGNOSTIC_BLOCK_TEXT', block: q.id, text })}
               index={i + 1}
             />
           )
@@ -185,12 +257,12 @@ function DiagnosticQuestions() {
               5
             </span>
             <p className="font-bold text-navy text-lg leading-snug pt-0.5">
-              If you could only fix one thing in the next 6 months, what would it be?
+              If you could only fix ONE thing in the next 6 months, what would it be?
             </p>
           </div>
 
           <div className="space-y-2 pl-10">
-            {PRIORITY_OPTIONS.map((opt) => (
+            {Q5_OPTIONS.map((opt) => (
               <label
                 key={opt.value}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all select-none ${
