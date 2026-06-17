@@ -2,6 +2,8 @@ import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isValidEmail } from '../lib/validation'
 import { useSession } from '../lib/session'
+import { startSession } from '../lib/api'
+import { track } from '../lib/analytics'
 
 // ─── Sample scorecard data (static, for visual preview only) ───────────────
 
@@ -79,6 +81,8 @@ function Landing() {
   const [consent, setConsent] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [consentError, setConsentError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const isFormValid = isValidEmail(email) && consent
 
@@ -106,21 +110,38 @@ function Landing() {
     if (checked && consentError) setConsentError(null)
   }
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const emailErr = validateEmail(email)
     const consentErr = !consent ? 'You must agree to continue' : null
     setEmailError(emailErr)
     setConsentError(consentErr)
-    if (emailErr || consentErr) return
+    if (emailErr || consentErr) {
+      track({ name: 'email_submitted', props: { valid: false } })
+      return
+    }
 
-    dispatch({
-      type: 'SET_SESSION',
-      email: email.trim().toLowerCase(),
-      consent: true,
-      sessionId: crypto.randomUUID(),
-    })
-    navigate('/calculator')
+    track({ name: 'email_submitted', props: { valid: true } })
+    setIsSubmitting(true)
+    setSubmitError(null)
+
+    try {
+      const result = await startSession({ email: email.trim().toLowerCase(), consent: true })
+      dispatch({
+        type: 'SET_SESSION',
+        email: email.trim().toLowerCase(),
+        consent: true,
+        sessionId: result.sessionId,
+        contactId: result.contactId,
+      })
+      track({ name: 'session_started', props: { session_id: result.sessionId } })
+      navigate('/calculator')
+    } catch (err) {
+      setIsSubmitting(false)
+      setSubmitError(
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+      )
+    }
   }
 
   return (
@@ -276,11 +297,17 @@ function Landing() {
               )}
             </div>
 
+            {submitError && (
+              <p role="alert" className="mb-4 text-sm text-red-600 text-center">
+                {submitError}
+              </p>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
-              disabled={!isFormValid}
-              aria-disabled={!isFormValid}
+              disabled={!isFormValid || isSubmitting}
+              aria-disabled={!isFormValid || isSubmitting}
               title={
                 !isFormValid
                   ? 'Please enter a valid email and agree to receive your scorecard'
@@ -288,7 +315,7 @@ function Landing() {
               }
               className="w-full bg-brand-blue text-white font-semibold py-4 rounded-lg transition-all hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-2"
             >
-              Start Assessment
+              {isSubmitting ? 'Starting…' : 'Start Assessment'}
             </button>
           </form>
 

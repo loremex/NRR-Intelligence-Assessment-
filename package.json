@@ -12,7 +12,7 @@
     "build:server": "npm --workspace server run build",
     "lint": "npm --workspace client run lint && npm --workspace server run lint",
     "typecheck": "npm --workspace client run typecheck && npm --workspace server run typecheck",
-    "test": "npm --workspace client run test"
+    "test": "npm --workspace client run test && npm --workspace server run test"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

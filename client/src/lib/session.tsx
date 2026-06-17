@@ -15,22 +15,32 @@ export interface SessionState {
   email: string | null
   consent: boolean
   sessionId: string | null
+  contactId: string | null
 }
 
 type SessionAction =
-  | { type: 'SET_SESSION'; email: string; consent: boolean; sessionId: string }
+  | { type: 'SET_SESSION'; email: string; consent: boolean; sessionId: string; contactId: string | null }
   | { type: 'CLEAR_SESSION' }
 
 const defaultState: SessionState = {
   email: null,
   consent: false,
   sessionId: null,
+  contactId: null,
 }
 
 function loadFromStorage(): SessionState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as SessionState
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<SessionState>
+      return {
+        email: parsed.email ?? null,
+        consent: parsed.consent ?? false,
+        sessionId: parsed.sessionId ?? null,
+        contactId: parsed.contactId ?? null,
+      }
+    }
   } catch {
     // ignore malformed storage
   }
@@ -40,7 +50,7 @@ function loadFromStorage(): SessionState {
 function sessionReducer(_state: SessionState, action: SessionAction): SessionState {
   switch (action.type) {
     case 'SET_SESSION':
-      return { email: action.email, consent: action.consent, sessionId: action.sessionId }
+      return { email: action.email, consent: action.consent, sessionId: action.sessionId, contactId: action.contactId }
     case 'CLEAR_SESSION':
       return defaultState
   }
