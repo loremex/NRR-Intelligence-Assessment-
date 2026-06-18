@@ -15,7 +15,7 @@ import { track } from '../lib/analytics'
 import { sendDiagnostic } from '../lib/api'
 
 const CALENDLY_URL =
-  (import.meta.env.VITE_CALENDLY_URL as string | undefined) ?? 'https://calendly.com/loremex/intro'
+  (import.meta.env.VITE_CALENDLY_URL as string | undefined) ?? 'https://calendar.app.google/wy6MEepxij2biy8y6'
 
 const STAGE_COLOR: Record<MaturityStage, string> = {
   Reactive:    '#6B7B89',

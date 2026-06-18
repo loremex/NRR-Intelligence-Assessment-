@@ -711,7 +711,7 @@ const BLOCK_DISPLAY: Record<string, string> = {
   reporting: 'NRR Reporting', retention: 'Retention', expansion: 'Expansion', pricing: 'Pricing',
 }
 const MATURITY_LABEL: Record<number, string> = {
-  1: 'Reactive', 2: 'Diagnostic', 3: 'Operational', 4: 'Optimized',
+  1: 'Reactive', 2: 'Diagnostic', 3: 'Operational', 4: 'Optimized', 5: 'Intelligent',
 }
 
 export function generateDiagnosticPDF(params: PDFDiagnosticParams): Blob {
@@ -761,13 +761,13 @@ export function generateDiagnosticPDF(params: PDFDiagnosticParams): Blob {
     const score = params.blockScores[b] ?? 1
     const label = MATURITY_LABEL[score] ?? ''
     const displayName = BLOCK_DISPLAY[b] ?? b
-    const tag = b === params.weakestBlock ? ' ▲ Gap' : b === params.strongestBlock ? ' ★' : ''
+    const tag = b === params.weakestBlock ? ' (gap)' : b === params.strongestBlock ? ' (best)' : ''
     return [displayName + tag, score.toString(), label]
   })
 
   autoTable(doc, {
     startY: y,
-    head: [['Block', 'Score (1–4)', 'Stage']],
+    head: [['Block', 'Score (1–5)', 'Stage']],
     body: blockBody,
     theme: 'grid',
     headStyles: { fillColor: NAVY, textColor: [255, 255, 255] as [number, number, number], fontSize: 7.5, fontStyle: 'bold' },
