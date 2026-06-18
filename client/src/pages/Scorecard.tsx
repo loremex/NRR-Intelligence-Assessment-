@@ -127,6 +127,27 @@ function deriveScorecardScope(
   return 'partial'
 }
 
+// ── Capability descriptions (accordion content) ────────────────────────────────
+
+const CAP_DESCRIPTIONS: Record<CapKey, { whatItIs: string; howItMovesNRR: string }> = {
+  retention: {
+    whatItIs: "The discipline of keeping the customers and revenue you've already won — minimizing logo churn and revenue contraction.",
+    howItMovesNRR: "Sets your NRR floor. Without retention, every expansion dollar is just refilling a leaky bucket.",
+  },
+  expansion: {
+    whatItIs: "The systematic motion of growing accounts after the initial sale — upsells, cross-sells, seat additions, usage growth.",
+    howItMovesNRR: "This is what pushes NRR above 100%. Without expansion, the best you can achieve is breaking even on what you started with.",
+  },
+  pricing: {
+    whatItIs: "How well your pricing model captures the value your solution delivers, with discipline around discounting and value-based packaging.",
+    howItMovesNRR: "Determines whether you keep the value you create or leak it through unnecessary discounting. Often the highest-leverage, lowest-effort lever.",
+  },
+  measurement: {
+    whatItIs: "The measurement foundation — consistent NRR definitions, trustworthy data, and real-time visibility across teams.",
+    howItMovesNRR: "You can't move what you can't measure. Reporting maturity determines whether you can act on retention, expansion, and pricing signals in time.",
+  },
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 function Scorecard() {
@@ -137,6 +158,8 @@ function Scorecard() {
   const [matrixCap, setMatrixCap] = useState<ActionCapKey | null>(null)
   const [selLeverId, setSelLeverId] = useState<string | null>(null)
   const [hoverRowId, setHoverRowId] = useState<string | null>(null)
+  const [expandedCapId, setExpandedCapId] = useState<CapKey | null>(null)
+  const [hoverCapId, setHoverCapId] = useState<CapKey | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const sections = CAP_ORDER.filter((k) => state.selectedCapabilities.includes(k))
@@ -673,46 +696,91 @@ function Scorecard() {
           </div>
         )}
 
+        {/* Capability overview rows (accordion) */}
+        {sections.length > 0 && (
+          <div data-reveal="caps" style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {sections.map((capKey) => {
+              const cap = getCapability(capKey)
+              const overall = getCapabilityOverall(capKey, picks)
+              const isExpanded = expandedCapId === capKey
+              const isHov = hoverCapId === capKey
+              const desc = CAP_DESCRIPTIONS[capKey]
+
+              function handleCapClick() {
+                setExpandedCapId(isExpanded ? null : capKey)
+                if (capKey !== 'measurement') {
+                  setMatrixCap(capKey as ActionCapKey)
+                  setSelLeverId(null)
+                }
+              }
+
+              return (
+                <div key={capKey}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={handleCapClick}
+                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') handleCapClick() }}
+                    onMouseEnter={() => setHoverCapId(capKey)}
+                    onMouseLeave={() => setHoverCapId(null)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 16,
+                      padding: '14px 20px',
+                      background: isExpanded ? 'rgba(61,96,144,.05)' : (isHov ? '#F8FAFC' : '#FFFFFF'),
+                      border: '1px solid #E3E8EE',
+                      borderRadius: isExpanded ? '12px 12px 0 0' : 12,
+                      cursor: 'pointer',
+                      transition: 'background .15s',
+                      userSelect: 'none',
+                      outline: 'none',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{cap?.name}</span>
+                    </div>
+                    <div style={{ width: 100, height: 6, borderRadius: 999, background: '#EEF1F4', flexShrink: 0, overflow: 'hidden' }}>
+                      {overall !== null && (
+                        <div style={{ width: `${overall / 5 * 100}%`, height: 6, borderRadius: 999, background: 'linear-gradient(90deg,#3D6090,#5B7A9E)' }} />
+                      )}
+                    </div>
+                    <svg
+                      width={16} height={16} viewBox="0 0 24 24" fill="none"
+                      stroke="#9AA7B3" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
+                      style={{ flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .22s ease' }}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                    <span style={{ fontFamily: 'Georgia, serif', fontSize: 16, fontWeight: 700, color: overall !== null ? '#0E2B41' : '#C2CAD3', flexShrink: 0, minWidth: 44, textAlign: 'right' }}>
+                      {overall !== null ? overall.toFixed(2) : '—'}
+                    </span>
+                  </div>
+                  <div style={{ maxHeight: isExpanded ? 240 : 0, overflow: 'hidden', transition: 'max-height .25s ease' }}>
+                    <div style={{ background: '#F8FAFC', border: '1px solid #E3E8EE', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '16px 20px 20px' }}>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: '#9AA7B3', marginBottom: 5 }}>What it is</div>
+                        <div style={{ fontSize: 14, color: '#243B52', lineHeight: 1.55 }}>{desc.whatItIs}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: '#9AA7B3', marginBottom: 5 }}>How it moves NRR</div>
+                        <div style={{ fontSize: 14, color: '#243B52', lineHeight: 1.55 }}>{desc.howItMovesNRR}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* Capability matrix (action caps) */}
         {currentMatrixCap && (
           <>
-            {/* Tab switcher */}
-            {actionCaps.length > 1 && (
-              <div style={{ display: 'flex', gap: 6, marginTop: 28, marginBottom: 0 }}>
-                {actionCaps.map((k) => {
-                  const cap = getCapability(k)
-                  const isActive = k === currentMatrixCap
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => { setMatrixCap(k); setSelLeverId(null) }}
-                      style={{
-                        padding: '8px 18px',
-                        borderRadius: '10px 10px 0 0',
-                        border: `1px solid ${isActive ? '#E3E8EE' : '#DDE3EA'}`,
-                        borderBottom: isActive ? '1px solid #FFFFFF' : '1px solid #DDE3EA',
-                        background: isActive ? '#FFFFFF' : '#E8ECF0',
-                        color: isActive ? '#0E2B41' : '#6B7B89',
-                        fontSize: 13,
-                        fontWeight: isActive ? 700 : 500,
-                        cursor: 'pointer',
-                        position: 'relative',
-                        zIndex: isActive ? 1 : 0,
-                        transition: 'background .15s, color .15s',
-                      }}
-                    >
-                      {cap?.name}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-
             {/* Matrix card */}
             <div
               data-reveal="matrix"
-              style={{ ...cardStyle, marginTop: actionCaps.length > 1 ? 0 : 18, borderTopLeftRadius: actionCaps.length > 1 ? 0 : 14 }}
+              style={{ ...cardStyle, marginTop: 24 }}
             >
               {/* Gauge + cap name + legend */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 6, flexWrap: 'wrap' as const }}>
