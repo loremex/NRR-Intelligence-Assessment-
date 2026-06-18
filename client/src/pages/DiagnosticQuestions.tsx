@@ -61,14 +61,14 @@ const QUESTIONS: QuestionConfig[] = [
   {
     id: 'q4_pricing',
     blockLabel: 'PRICING OPTIMIZATION',
-    question: 'How clearly would you say your customers connect what they pay to the outcomes they get?',
+    question: 'How effectively would you say your pricing captures the value your solution delivers?',
     contextLine: 'Pricing discipline is where value capture happens — or quietly leaks away.',
     options: [
-      { title: 'No connection',    descriptor: 'Pricing isn\'t tied to outcomes; customers push back on cost' },
-      { title: 'Vague link',       descriptor: 'Customers see value but can\'t articulate the ROI' },
-      { title: 'Loose alignment',  descriptor: 'Some customers see the link, others don\'t' },
-      { title: 'Clear value story',descriptor: 'Most customers can justify the spend internally' },
-      { title: 'Outcome-priced',   descriptor: 'Pricing is anchored to measurable outcomes; ROI is obvious' },
+      { title: 'No capture',       descriptor: 'Pricing isn\'t tied to value; discounting fills the gap' },
+      { title: 'Loose link',       descriptor: 'Pricing is based on what closes deals, not value delivered' },
+      { title: 'Partial capture',  descriptor: 'We have a pricing framework but limited visibility into value gaps' },
+      { title: 'Strong alignment', descriptor: 'Pricing is mostly aligned to outcomes; discount discipline is enforced' },
+      { title: 'Full capture',     descriptor: 'Pricing is anchored to measurable outcomes; value capture is continuously tested' },
     ],
   },
 ]
