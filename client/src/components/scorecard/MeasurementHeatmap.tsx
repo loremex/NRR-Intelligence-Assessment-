@@ -1,6 +1,17 @@
 import { getCapability } from '../../lib/rubric'
-import { scoreToColor } from '../../lib/scoring'
 import type { MeasurementCapability } from '../../lib/rubric-schema'
+
+// Monochromatic navy ramp — matches the action capability heatmap palette
+function navyBg(v: number | null): string {
+  if (v === null) return '#F4F6F9'
+  const ramp: Record<number, string> = { 1: '#EAEEF3', 2: '#D2DBE4', 3: '#AABBCC', 4: '#6E8AA6', 5: '#3E5C7C' }
+  return ramp[Math.round(v)] ?? '#D2DBE4'
+}
+
+function navyFg(v: number | null): string {
+  if (v === null) return '#C2CAD3'
+  return Math.round(v) >= 4 ? '#FFFFFF' : '#243B52'
+}
 
 interface MeasurementHeatmapProps {
   picks: Record<string, number | null>
@@ -40,7 +51,7 @@ export function MeasurementHeatmap({ picks }: MeasurementHeatmapProps) {
                   </td>
                   <td
                     className="px-3 py-2 text-center font-medium tabular-nums"
-                    style={{ backgroundColor: scoreToColor(score) }}
+                    style={{ backgroundColor: navyBg(score), color: navyFg(score) }}
                   >
                     {score ?? '—'}
                   </td>
