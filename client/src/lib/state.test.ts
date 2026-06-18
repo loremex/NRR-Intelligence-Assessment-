@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { assessmentReducer, defaultState, loadFromStorage, type CapKey } from './state'
+import { assessmentReducer, defaultState, loadFromStorage, DEFAULT_DIAGNOSTIC_ANSWERS, type CapKey } from './state'
+import { computeDiagnosticScores } from '../content/diagnosticTemplates'
 
-const STORAGE_KEY = 'loremex_assessment_state_v5'
+const STORAGE_KEY = 'loremex_assessment_state_v6'
 
 describe('assessmentReducer', () => {
   it('default state has correct shape', () => {
-    expect(defaultState.schemaVersion).toBe(5)
+    expect(defaultState.schemaVersion).toBe(6)
     expect(defaultState.email).toBeNull()
     expect(defaultState.sessionId).toBeNull()
     expect(defaultState.selectedCapabilities).toEqual([])
@@ -145,13 +146,13 @@ describe('assessmentReducer', () => {
     expect(s3.completedSections).toHaveLength(2)
   })
 
-  it('SET_DIAGNOSTIC_BLOCK_CHOICE initialises diagnosticAnswers and sets choice', () => {
+  it('SET_DIAGNOSTIC_BLOCK_CHOICE initialises diagnosticAnswers and sets choice (1-5)', () => {
     const state = assessmentReducer(defaultState, {
       type: 'SET_DIAGNOSTIC_BLOCK_CHOICE',
       block: 'q1_reporting',
-      choice: 3,
+      choice: 5,
     })
-    expect(state.diagnosticAnswers?.q1_reporting.choice).toBe(3)
+    expect(state.diagnosticAnswers?.q1_reporting.choice).toBe(5)
     expect(state.diagnosticAnswers?.q2_retention.choice).toBeNull()
   })
 
@@ -217,11 +218,11 @@ describe('loadFromStorage', () => {
     expect(state).toEqual(defaultState)
   })
 
-  it('hydrates valid v5 state from localStorage', () => {
+  it('hydrates valid v6 state from localStorage', () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        schemaVersion: 5,
+        schemaVersion: 6,
         email: 'test@example.com',
         consent: true,
         sessionId: 'sess-xyz',
@@ -230,27 +231,27 @@ describe('loadFromStorage', () => {
     const state = loadFromStorage()
     expect(state.email).toBe('test@example.com')
     expect(state.sessionId).toBe('sess-xyz')
-    expect(state.schemaVersion).toBe(5)
+    expect(state.schemaVersion).toBe(6)
   })
 
-  it('resets on v4 state (old schema)', () => {
+  it('resets on v5 state (old schema)', () => {
     localStorage.setItem(
-      'loremex_assessment_state_v4',
-      JSON.stringify({ schemaVersion: 4, email: 'old@example.com' }),
+      'loremex_assessment_state_v5',
+      JSON.stringify({ schemaVersion: 5, email: 'old@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBeNull()
-    expect(state.schemaVersion).toBe(5)
+    expect(state.schemaVersion).toBe(6)
   })
 
-  it('resets on version mismatch in v5 key', () => {
+  it('resets on version mismatch in v6 key', () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 4, email: 'old@example.com' }),
+      JSON.stringify({ schemaVersion: 5, email: 'old@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBeNull()
-    expect(state.schemaVersion).toBe(5)
+    expect(state.schemaVersion).toBe(6)
   })
 
   it('resets on malformed JSON', () => {
@@ -262,11 +263,63 @@ describe('loadFromStorage', () => {
   it('fills missing fields with defaults during hydration', () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ schemaVersion: 5, email: 'partial@example.com' }),
+      JSON.stringify({ schemaVersion: 6, email: 'partial@example.com' }),
     )
     const state = loadFromStorage()
     expect(state.email).toBe('partial@example.com')
     expect(state.selectedCapabilities).toEqual([])
     expect(state.picks).toEqual(defaultState.picks)
+  })
+})
+
+describe('computeDiagnosticScores', () => {
+  function makeAnswers(q1: 1|2|3|4|5, q2: 1|2|3|4|5, q3: 1|2|3|4|5, q4: 1|2|3|4|5) {
+    return {
+      ...DEFAULT_DIAGNOSTIC_ANSWERS,
+      q1_reporting: { choice: q1 as 1|2|3|4|5, freeText: null },
+      q2_retention: { choice: q2 as 1|2|3|4|5, freeText: null },
+      q3_expansion: { choice: q3 as 1|2|3|4|5, freeText: null },
+      q4_pricing:   { choice: q4 as 1|2|3|4|5, freeText: null },
+    }
+  }
+
+  it('returns null when any block choice is null', () => {
+    expect(computeDiagnosticScores(DEFAULT_DIAGNOSTIC_ANSWERS)).toBeNull()
+  })
+
+  it('Q1=2 Q2=1 Q3=3 Q4=2 → weakestBlock=retention, maturityStage=Diagnostic, avg=2.0', () => {
+    const result = computeDiagnosticScores(makeAnswers(2, 1, 3, 2))
+    expect(result).not.toBeNull()
+    expect(result!.weakestBlock).toBe('retention')
+    expect(result!.blockScores.retention).toBe(1)
+    expect(result!.maturityStage).toBe('Diagnostic')
+    expect(result!.overallAvg).toBe(2.0)
+  })
+
+  it('Q1=5 Q2=5 Q3=5 Q4=5 → weakestBlock=reporting (tiebreaker), maturityStage=Intelligent', () => {
+    const result = computeDiagnosticScores(makeAnswers(5, 5, 5, 5))
+    expect(result!.weakestBlock).toBe('reporting')
+    expect(result!.maturityStage).toBe('Intelligent')
+    expect(result!.overallAvg).toBe(5.0)
+  })
+
+  it('Q1=3 Q2=3 Q3=3 Q4=3 → maturityStage=Operational, avg=3.0', () => {
+    const result = computeDiagnosticScores(makeAnswers(3, 3, 3, 3))
+    expect(result!.maturityStage).toBe('Operational')
+    expect(result!.overallAvg).toBe(3.0)
+  })
+
+  it('Q1=4 Q2=4 Q3=5 Q4=5 → maturityStage=Intelligent, avg=4.5', () => {
+    const result = computeDiagnosticScores(makeAnswers(4, 4, 5, 5))
+    expect(result!.maturityStage).toBe('Intelligent')
+    expect(result!.overallAvg).toBe(4.5)
+  })
+
+  it('Q1=1 Q2=2 Q3=3 Q4=4 → weakestBlock=reporting, blockScores.reporting=1, maturityStage=Diagnostic, avg=2.5', () => {
+    const result = computeDiagnosticScores(makeAnswers(1, 2, 3, 4))
+    expect(result!.weakestBlock).toBe('reporting')
+    expect(result!.blockScores.reporting).toBe(1)
+    expect(result!.maturityStage).toBe('Diagnostic')
+    expect(result!.overallAvg).toBe(2.5)
   })
 })

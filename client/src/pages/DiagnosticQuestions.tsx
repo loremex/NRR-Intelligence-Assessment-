@@ -5,61 +5,70 @@ import { track } from '../lib/analytics'
 
 // ─── Inline question config ───────────────────────────────────────────────────
 
+interface QuestionOption {
+  title: string
+  descriptor: string
+}
+
 interface QuestionConfig {
   id: DiagnosticBlockKey
   blockLabel: string
   question: string
   contextLine: string
-  options: [string, string, string, string]
+  options: [QuestionOption, QuestionOption, QuestionOption, QuestionOption, QuestionOption]
 }
 
 const QUESTIONS: QuestionConfig[] = [
   {
     id: 'q1_reporting',
     blockLabel: 'NRR REPORTING',
-    question: 'How confident are you to present your NRR number to the board?',
+    question: 'If the Board asked for your current NRR right now, how confident are you in the number you\'d give?',
     contextLine: 'Your NRR number is only useful if it\'s defensible. Board moments expose every gap in your measurement.',
     options: [
-      'We\'ve punted the NRR question — finance, CS, and RevOps would each give a different number',
-      'We have one number but it takes a week to pull and I don\'t fully trust it',
-      'We have a trusted number quarterly, but board meetings sometimes catch us with stale data',
-      'Our NRR view is current, defensible, and ready for any board moment',
+      { title: 'No NRR number',      descriptor: 'We don\'t formally track it' },
+      { title: 'Not confident',      descriptor: 'Different teams give different numbers' },
+      { title: 'Somewhat confident', descriptor: 'I\'d caveat the number heavily' },
+      { title: 'Confident',          descriptor: 'I have the number but data isn\'t real-time' },
+      { title: 'Very confident',     descriptor: 'Current, defensible, holds up under board follow-up' },
     ],
   },
   {
     id: 'q2_retention',
     blockLabel: 'REVENUE RETENTION',
-    question: 'Can you detect churn risk before it shows up in cancellations?',
+    question: 'If asked which accounts are at risk of churning next quarter, could you answer?',
     contextLine: 'By the time a customer hands in notice, the conversation is already lost. Early signal beats late heroics.',
     options: [
-      'We usually find out at renewal — sometimes after the customer has already decided',
-      'CS has hunches based on relationship signals, but it\'s anecdotal',
-      'We have a risk-scoring layer; CS reviews flagged accounts but action is uneven',
-      'Risk signals trigger defined save plays in real time — and we measure win rates',
+      { title: 'No way to tell',   descriptor: 'We find out at renewal, sometimes after' },
+      { title: 'Best guesses',     descriptor: 'CS has hunches based on relationship signals' },
+      { title: 'Partial view',     descriptor: 'We track some accounts but coverage is uneven' },
+      { title: 'Clear list',       descriptor: 'We have a risk-scored list, reviewed regularly' },
+      { title: 'Real-time signal', descriptor: 'Risk signals trigger save plays automatically' },
     ],
   },
   {
     id: 'q3_expansion',
     blockLabel: 'REVENUE EXPANSION',
-    question: 'Is account growth a system in your company — or just your best AEs closing one-offs?',
+    question: 'How easily can you identify expansion opportunities across products and accounts?',
     contextLine: 'A handful of heroic reps can hide a missing motion. Repeatability is what investors price.',
     options: [
-      'Expansion happens when a customer asks; we don\'t drive it',
-      'Our best reps know how to expand — the others don\'t replicate it',
-      'We have an expansion motion but coverage is uneven across the book',
-      'Expansion is a measurable engine — usage signals trigger plays that close consistently',
+      { title: 'No visibility',          descriptor: 'Expansion happens when customers ask' },
+      { title: 'Tribal knowledge',       descriptor: 'Our best reps know, others don\'t replicate it' },
+      { title: 'Manual review',          descriptor: 'We spot opportunities in QBRs but coverage is uneven' },
+      { title: 'Defined motion',         descriptor: 'We have an expansion playbook tied to account signals' },
+      { title: 'Real-time intelligence', descriptor: 'Usage and lifecycle data flag expansion-ready accounts automatically' },
     ],
   },
   {
     id: 'q4_pricing',
     blockLabel: 'PRICING OPTIMIZATION',
-    question: 'How would you assess your pricing alignment to customer value?',
+    question: 'How clearly would you say your customers connect what they pay to the outcomes they get?',
     contextLine: 'Pricing discipline is where value capture happens — or quietly leaks away.',
     options: [
-      'We haven\'t seriously revisited pricing in years — discounting fills the gap',
-      'Our pricing isn\'t really tied to customer outcomes — it\'s based on what closes deals',
-      'We have a pricing framework but limited visibility into how it ties to the value customers actually realize',
-      'Our pricing is anchored to measurable customer outcomes — and discount discipline is enforced',
+      { title: 'No connection',    descriptor: 'Pricing isn\'t tied to outcomes; customers push back on cost' },
+      { title: 'Vague link',       descriptor: 'Customers see value but can\'t articulate the ROI' },
+      { title: 'Loose alignment',  descriptor: 'Some customers see the link, others don\'t' },
+      { title: 'Clear value story',descriptor: 'Most customers can justify the spend internally' },
+      { title: 'Outcome-priced',   descriptor: 'Pricing is anchored to measurable outcomes; ROI is obvious' },
     ],
   },
 ]
@@ -83,10 +92,10 @@ interface BlockCardProps {
   blockLabel: string
   question: string
   contextLine: string
-  options: readonly string[]
-  selectedScore: 1 | 2 | 3 | 4 | null
+  options: readonly QuestionOption[]
+  selectedScore: 1 | 2 | 3 | 4 | 5 | null
   freeText: string | null
-  onSelect: (score: 1 | 2 | 3 | 4) => void
+  onSelect: (score: 1 | 2 | 3 | 4 | 5) => void
   onTextChange: (text: string) => void
   index: number
 }
@@ -122,11 +131,13 @@ function BlockCard({
       </div>
 
       <div className="space-y-2 pl-10">
-        {options.map((text, i) => {
-          const score = (i + 1) as 1 | 2 | 3 | 4
+        {options.map((opt, i) => {
+          const score = (i + 1) as 1 | 2 | 3 | 4 | 5
           return (
             <label
               key={i}
+              htmlFor={`${fieldName}-opt-${i}`}
+              aria-label={opt.title}
               className={`flex items-start gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-all select-none ${
                 selectedScore === score
                   ? 'border-navy bg-slate-50 ring-1 ring-navy'
@@ -134,14 +145,18 @@ function BlockCard({
               }`}
             >
               <input
+                id={`${fieldName}-opt-${i}`}
                 type="radio"
                 name={fieldName}
                 value={i}
                 checked={selectedScore === score}
                 onChange={() => onSelect(score)}
-                className="mt-0.5 accent-navy shrink-0"
+                className="mt-1 accent-navy shrink-0"
               />
-              <span className="text-sm text-text-dark leading-relaxed">{text}</span>
+              <span className="flex flex-col">
+                <span className="text-sm font-semibold text-text-dark leading-snug">{opt.title}</span>
+                <span className="text-xs text-slate-500 leading-relaxed mt-0.5">{opt.descriptor}</span>
+              </span>
             </label>
           )
         })}
@@ -243,7 +258,7 @@ function DiagnosticQuestions() {
               options={q.options}
               selectedScore={blockAnswer?.choice ?? null}
               freeText={blockAnswer?.freeText ?? null}
-              onSelect={(score) => dispatch({ type: 'SET_DIAGNOSTIC_BLOCK_CHOICE', block: q.id, choice: score })}
+              onSelect={(score) => dispatch({ type: 'SET_DIAGNOSTIC_BLOCK_CHOICE', block: q.id, choice: score as 1 | 2 | 3 | 4 | 5 })}
               onTextChange={(text) => dispatch({ type: 'SET_DIAGNOSTIC_BLOCK_TEXT', block: q.id, text })}
               index={i + 1}
             />

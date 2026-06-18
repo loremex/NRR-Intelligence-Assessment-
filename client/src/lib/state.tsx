@@ -11,7 +11,7 @@ import {
 } from 'react'
 import type { NRRMode } from './nrr'
 
-const STORAGE_KEY = 'loremex_assessment_state_v5'
+const STORAGE_KEY = 'loremex_assessment_state_v6'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ export interface NRRInputs {
 }
 
 export interface DiagnosticBlockAnswer {
-  choice: 1 | 2 | 3 | 4 | null
+  choice: 1 | 2 | 3 | 4 | 5 | null
   freeText: string | null
 }
 
@@ -55,7 +55,7 @@ export const DEFAULT_DIAGNOSTIC_ANSWERS: DiagnosticAnswers = {
 }
 
 export interface AssessmentState {
-  schemaVersion: 5
+  schemaVersion: 6
   sessionId: string | null
   contactId: string | null
   email: string | null
@@ -82,7 +82,7 @@ export type AssessmentAction =
   | { type: 'SET_NRR_MODE'; mode: NRRMode }
   | { type: 'SKIP_NRR_CALCULATOR' }
   | { type: 'RESET_NRR_CALCULATOR' }
-  | { type: 'SET_DIAGNOSTIC_BLOCK_CHOICE'; block: DiagnosticBlockKey; choice: 1 | 2 | 3 | 4 | null }
+  | { type: 'SET_DIAGNOSTIC_BLOCK_CHOICE'; block: DiagnosticBlockKey; choice: 1 | 2 | 3 | 4 | 5 | null }
   | { type: 'SET_DIAGNOSTIC_BLOCK_TEXT'; block: DiagnosticBlockKey; text: string }
   | { type: 'SET_DIAGNOSTIC_PRIORITY_CHOICE'; choice: DiagnosticPriority | null }
   | { type: 'SET_DIAGNOSTIC_ANYTHING_ELSE'; text: string }
@@ -97,7 +97,7 @@ export type AssessmentAction =
 // ─── Default state ────────────────────────────────────────────────────────────
 
 export const defaultState: AssessmentState = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   sessionId: null,
   contactId: null,
   email: null,
@@ -254,8 +254,8 @@ export function loadFromStorage(): AssessmentState {
     if (!raw) return defaultState
     const parsed = JSON.parse(raw) as Partial<AssessmentState>
     // Reject any stored state with a mismatched schema version
-    if (parsed.schemaVersion !== 5) return defaultState
-    return { ...defaultState, ...parsed, schemaVersion: 5 }
+    if (parsed.schemaVersion !== 6) return defaultState
+    return { ...defaultState, ...parsed, schemaVersion: 6 }
   } catch {
     return defaultState
   }

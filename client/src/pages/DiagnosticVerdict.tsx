@@ -30,12 +30,12 @@ function BlockScoreBar({
   isWeakest,
 }: {
   block: DiagnosticBlock
-  score: 1 | 2 | 3 | 4
+  score: 1 | 2 | 3 | 4 | 5
   isWeakest: boolean
 }) {
   const colors = MATURITY_COLORS[score]
   const label = MATURITY_LABELS[score]
-  const fillPct = (score / 4) * 100
+  const fillPct = (score / 5) * 100
 
   return (
     <div className={`p-4 rounded-lg ${isWeakest ? 'border-2 border-red-300 bg-red-50' : 'border border-slate-200 bg-white'}`}>
@@ -193,19 +193,21 @@ function DiagnosticVerdict() {
 
         {/* Maturity stage banner */}
         <div className={`rounded-2xl p-6 border ${
-          scores.maturityStage === 'Reactive'    ? 'bg-red-50 border-red-200' :
-          scores.maturityStage === 'Diagnostic'  ? 'bg-amber-50 border-amber-200' :
-          scores.maturityStage === 'Operational' ? 'bg-green-50 border-green-200' :
-                                                   'bg-emerald-50 border-emerald-200'
+          scores.maturityStage === 'Reactive'     ? 'bg-red-50 border-red-200' :
+          scores.maturityStage === 'Diagnostic'   ? 'bg-amber-50 border-amber-200' :
+          scores.maturityStage === 'Operational'  ? 'bg-yellow-50 border-yellow-200' :
+          scores.maturityStage === 'Optimized'    ? 'bg-green-50 border-green-200' :
+                                                    'bg-emerald-50 border-emerald-200'
         }`}>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1">
             Overall Stage
           </p>
           <p className={`font-display text-3xl font-bold mb-2 ${
-            scores.maturityStage === 'Reactive'    ? 'text-red-700' :
-            scores.maturityStage === 'Diagnostic'  ? 'text-amber-700' :
-            scores.maturityStage === 'Operational' ? 'text-green-700' :
-                                                     'text-emerald-700'
+            scores.maturityStage === 'Reactive'     ? 'text-red-700' :
+            scores.maturityStage === 'Diagnostic'   ? 'text-amber-700' :
+            scores.maturityStage === 'Operational'  ? 'text-yellow-700' :
+            scores.maturityStage === 'Optimized'    ? 'text-green-700' :
+                                                      'text-emerald-700'
           }`}>
             {scores.maturityStage}
           </p>

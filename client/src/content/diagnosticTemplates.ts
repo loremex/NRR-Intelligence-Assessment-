@@ -91,13 +91,14 @@ export const PRIORITY_OPTIONS: PriorityOption[] = [
 
 // ─── Maturity scoring ─────────────────────────────────────────────────────────
 
-export type MaturityStage = 'Reactive' | 'Diagnostic' | 'Operational' | 'Optimized'
+export type MaturityStage = 'Reactive' | 'Diagnostic' | 'Operational' | 'Optimized' | 'Intelligent'
 
-export const MATURITY_LABELS: Record<1 | 2 | 3 | 4, MaturityStage> = {
+export const MATURITY_LABELS: Record<1 | 2 | 3 | 4 | 5, MaturityStage> = {
   1: 'Reactive',
   2: 'Diagnostic',
   3: 'Operational',
   4: 'Optimized',
+  5: 'Intelligent',
 }
 
 export const MATURITY_STAGE_DESCRIPTIONS: Record<MaturityStage, string> = {
@@ -105,30 +106,33 @@ export const MATURITY_STAGE_DESCRIPTIONS: Record<MaturityStage, string> = {
   Diagnostic:  'You have structure in place but it\'s inconsistent — you can see problems but aren\'t yet systematically preventing them.',
   Operational: 'Your team has solid processes across most areas — the focus now is making them more predictive and less dependent on manual effort.',
   Optimized:   'Your NRR practice is mature and data-driven — the opportunity is compounding the edges and staying ahead of the market.',
+  Intelligent: 'Your NRR practice is a genuine competitive advantage — you operate with real-time signal, systematized plays, and outcome-anchored pricing.',
 }
 
 export function getMaturityStageFromAvg(avg: number): MaturityStage {
-  if (avg <= 1.75) return 'Reactive'
-  if (avg <= 2.5)  return 'Diagnostic'
-  if (avg <= 3.25) return 'Operational'
-  return 'Optimized'
+  if (avg < 2.0) return 'Reactive'
+  if (avg < 3.0) return 'Diagnostic'
+  if (avg < 4.0) return 'Operational'
+  if (avg < 4.5) return 'Optimized'
+  return 'Intelligent'
 }
 
-export function getMaturityLabelFromScore(score: 1 | 2 | 3 | 4): MaturityStage {
+export function getMaturityLabelFromScore(score: 1 | 2 | 3 | 4 | 5): MaturityStage {
   return MATURITY_LABELS[score]
 }
 
-export const MATURITY_COLORS: Record<1 | 2 | 3 | 4, { bg: string; text: string; bar: string }> = {
+export const MATURITY_COLORS: Record<1 | 2 | 3 | 4 | 5, { bg: string; text: string; bar: string }> = {
   1: { bg: 'bg-red-100',    text: 'text-red-700',    bar: 'bg-red-400' },
-  2: { bg: 'bg-amber-100',  text: 'text-amber-700',  bar: 'bg-amber-400' },
-  3: { bg: 'bg-green-100',  text: 'text-green-700',  bar: 'bg-green-400' },
-  4: { bg: 'bg-emerald-100',text: 'text-emerald-700',bar: 'bg-emerald-500' },
+  2: { bg: 'bg-orange-100', text: 'text-orange-700', bar: 'bg-orange-400' },
+  3: { bg: 'bg-yellow-100', text: 'text-yellow-700', bar: 'bg-yellow-400' },
+  4: { bg: 'bg-green-100',  text: 'text-green-700',  bar: 'bg-green-400' },
+  5: { bg: 'bg-emerald-100',text: 'text-emerald-700',bar: 'bg-emerald-500' },
 }
 
 // ─── Score computation ────────────────────────────────────────────────────────
 
 export interface DiagnosticScores {
-  blockScores: Record<DiagnosticBlock, 1 | 2 | 3 | 4>
+  blockScores: Record<DiagnosticBlock, 1 | 2 | 3 | 4 | 5>
   weakestBlock: DiagnosticBlock
   strongestBlock: DiagnosticBlock
   overallAvg: number
@@ -143,7 +147,7 @@ export function computeDiagnosticScores(answers: DiagnosticAnswers): DiagnosticS
 
   if (!q1 || !q2 || !q3 || !q4) return null
 
-  const blockScores: Record<DiagnosticBlock, 1 | 2 | 3 | 4> = {
+  const blockScores: Record<DiagnosticBlock, 1 | 2 | 3 | 4 | 5> = {
     reporting: q1,
     retention: q2,
     expansion: q3,

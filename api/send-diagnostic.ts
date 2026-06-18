@@ -5,13 +5,13 @@ import { sendDiagnosticEmail } from './_lib/email'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DiagnosticAnswerPayload {
-  q1_score: 1 | 2 | 3 | 4
+  q1_score: 1 | 2 | 3 | 4 | 5
   q1_text: string | null
-  q2_score: 1 | 2 | 3 | 4
+  q2_score: 1 | 2 | 3 | 4 | 5
   q2_text: string | null
-  q3_score: 1 | 2 | 3 | 4
+  q3_score: 1 | 2 | 3 | 4 | 5
   q3_text: string | null
-  q4_score: 1 | 2 | 3 | 4
+  q4_score: 1 | 2 | 3 | 4 | 5
   q4_text: string | null
   q5_priority: string
   q6_text: string | null
@@ -38,7 +38,7 @@ interface SendDiagnosticBody {
   maturityStage: string
   weakestBlock: string
   strongestBlock: string
-  blockScores: Record<string, 1 | 2 | 3 | 4>
+  blockScores: Record<string, 1 | 2 | 3 | 4 | 5>
   q5Priority: string
   verdictDescription: string
   recommendations: [string, string, string]

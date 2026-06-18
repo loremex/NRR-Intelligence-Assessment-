@@ -408,7 +408,7 @@ export interface PDFDiagnosticParams {
   maturityStage: string
   weakestBlock: string
   strongestBlock: string
-  blockScores: Record<string, 1 | 2 | 3 | 4>
+  blockScores: Record<string, 1 | 2 | 3 | 4 | 5>
   verdictDescription: string
   recommendations: [string, string, string]
   evUplift: { scenarios: PDFEVScenario[]; topOfMarketMessage: string | null; startingMRRFormatted: string } | null
