@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -10,3 +10,58 @@
     color: #1E293B;
   }
 }
+
+/* ── NRR Diagnostic Report — animations ─────────────────────────────────── */
+
+@keyframes nrrPulse { 0%,100%{opacity:1} 50%{opacity:.48} }
+[data-nrr="pulse"] { animation: nrrPulse 2.6s ease-in-out infinite; }
+
+[data-motion="on"] [data-reveal] {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity .72s cubic-bezier(.22,1,.36,1), transform .72s cubic-bezier(.22,1,.36,1);
+}
+[data-motion="on"] [data-reveal][data-inview="true"] { opacity: 1; transform: none; }
+
+[data-motion="on"] [data-nrr="fill"] {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1.05s cubic-bezier(.22,1,.36,1) .18s;
+}
+[data-motion="on"] [data-inview="true"] [data-nrr="fill"] { transform: scaleX(1); }
+
+[data-motion="on"] [data-nrr="marker"] {
+  opacity: 0;
+  transform: scale(.3);
+  transform-origin: center;
+  transition: opacity .45s ease .52s, transform .6s cubic-bezier(.34,1.56,.64,1) .52s;
+}
+[data-motion="on"] [data-inview="true"] [data-nrr="marker"] { opacity: 1; transform: scale(1); }
+
+[data-motion="on"] [data-nrr="radar"] {
+  opacity: 0;
+  transform: scale(.72);
+  transform-origin: center;
+  transition: opacity .8s ease .15s, transform .92s cubic-bezier(.22,1,.36,1) .15s;
+}
+[data-motion="on"] [data-inview="true"] [data-nrr="radar"] { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-motion="on"] [data-reveal],
+  [data-motion="on"] [data-nrr] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ── NRR Diagnostic Report — layout helpers ─────────────────────────────── */
+
+.nrr-hero-grid { grid-template-columns: 1fr; }
+@media (min-width: 640px) { .nrr-hero-grid { grid-template-columns: 1.3fr 0.7fr; } }
+
+.nrr-cta-primary { background: #0E2B41; color: #FFFFFF; transition: background .15s; }
+.nrr-cta-primary:hover { background: #1a3d56; }
+.nrr-cta-secondary { background: #FFFFFF; color: #0E2B41; border: 2px solid #0E2B41; transition: background .15s; cursor: pointer; }
+.nrr-cta-secondary:hover { background: #F1F5F9; }
