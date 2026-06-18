@@ -161,34 +161,49 @@ function Landing() {
       </nav>
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="bg-navy text-white py-20 sm:py-28 px-6">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-brand-blue text-xs font-semibold uppercase tracking-widest mb-5">
-            NRR Intelligence Assessment — Free
-          </p>
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight text-white mb-6">
-            NRR is moved,
-            <br />
-            not measured.
-          </h1>
-          <p className="text-slate-300 text-lg sm:text-xl max-w-2xl mb-8 leading-relaxed">
-            Most PE-backed SaaS companies track NRR. Few have the capability to move it. This
-            diagnostic scores your company across Retention, Expansion, and Pricing Optimization —
-            and tells you exactly where the gap is.
-          </p>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-400 mb-10">
-            <span>8–30 minutes depending on scope</span>
-            <span className="hidden sm:inline text-slate-600">·</span>
-            <span>Scored across 4 capabilities</span>
-            <span className="hidden sm:inline text-slate-600">·</span>
-            <span>Downloadable PDF report</span>
+      <section className="bg-navy text-white">
+        <div className="grid md:grid-cols-2 md:min-h-[720px]">
+
+          {/* Left column — text */}
+          <div className="px-6 py-20 md:py-0 flex items-center">
+            <div className="w-full max-w-xl mx-auto md:ml-auto md:mr-0 md:pr-10 lg:pr-16">
+              <p className="text-brand-blue text-xs font-semibold uppercase tracking-widest mb-5">
+                NRR Intelligence Assessment — Free
+              </p>
+              <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white mb-6">
+                NRR. Measured. Activated.
+              </h1>
+              <p className="text-slate-300 text-lg sm:text-xl mb-8 leading-relaxed">
+                Most PE-backed SaaS companies track NRR. Few have the capability to move it. This
+                diagnostic scores your company across Retention, Expansion, and Pricing
+                Optimization — and tells you exactly where the gap is.
+              </p>
+              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-400 mb-10">
+                <span>8–30 minutes depending on scope</span>
+                <span className="hidden sm:inline text-slate-600">·</span>
+                <span>Scored across 4 capabilities</span>
+                <span className="hidden sm:inline text-slate-600">·</span>
+                <span>Downloadable PDF report</span>
+              </div>
+              <button
+                onClick={scrollToForm}
+                className="bg-brand-blue hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-8 py-4 rounded-lg transition-colors text-base sm:text-lg focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-navy"
+              >
+                Start the Assessment
+              </button>
+            </div>
           </div>
-          <button
-            onClick={scrollToForm}
-            className="bg-brand-blue hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-8 py-4 rounded-lg transition-colors text-base sm:text-lg focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-navy"
-          >
-            Start the Assessment
-          </button>
+
+          {/* Right column — decorative geometric image, desktop only */}
+          <div className="hidden md:block overflow-hidden">
+            <img
+              src="/hero-pattern.jpeg"
+              alt=""
+              className="w-full h-full object-cover"
+              loading="eager"
+            />
+          </div>
+
         </div>
       </section>
 
