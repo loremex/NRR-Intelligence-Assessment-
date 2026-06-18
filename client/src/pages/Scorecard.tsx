@@ -366,6 +366,7 @@ function Scorecard() {
       recommendationSentences: recSentences,
       ctaText: cta.text,
       ctaUrl: cta.url,
+      diagnosticAnswers: state.diagnosticAnswers,
     }
   }, [state, picks, sections, actionCaps, hasMeasurement, overallIntelligence, nrrResult, recSentences, cta])
 
@@ -481,6 +482,7 @@ function Scorecard() {
       recommendationSentences: recSentences,
       ctaText: cta.text,
       ctaUrl: cta.url,
+      diagnosticAnswers: state.diagnosticAnswers,
     }
 
     ;(async () => {
