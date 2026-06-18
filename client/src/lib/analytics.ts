@@ -35,6 +35,7 @@ export type AnalyticsEvent =
   | { name: 'diagnostic_started'; props: Record<string, never> }
   | { name: 'diagnostic_completed'; props: Record<string, never> }
   | { name: 'go_deeper_clicked'; props: Record<string, never> }
+  | { name: 'diagnostic_pdf_downloaded'; props: Record<string, never> }
 
 export function track(event: AnalyticsEvent): void {
   try {

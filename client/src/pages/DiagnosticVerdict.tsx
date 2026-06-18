@@ -290,6 +290,37 @@ function DiagnosticVerdict() {
     navigate('/selection')
   }
 
+  async function handleDownloadDiagnosticPDF() {
+    const { generateDiagnosticPDF } = await import('../lib/pdfGenerator')
+    const evUplift = buildEVEmailData()
+    const blob = generateDiagnosticPDF({
+      email: state.email ?? '',
+      generatedAt: new Date().toISOString(),
+      maturityStage: scores!.maturityStage,
+      weakestBlock: scores!.weakestBlock,
+      strongestBlock: scores!.strongestBlock,
+      blockScores: scores!.blockScores as Record<string, 1 | 2 | 3 | 4 | 5>,
+      verdictDescription: template!.description,
+      recommendations: template!.recommendations as [string, string, string],
+      evUplift,
+      q1_text: answers!.q1_reporting.freeText ?? null,
+      q2_text: answers!.q2_retention.freeText ?? null,
+      q3_text: answers!.q3_expansion.freeText ?? null,
+      q4_text: answers!.q4_pricing.freeText ?? null,
+      q6_text: answers!.q6_anything_else.freeText ?? null,
+      ctaUrl: CALENDLY_URL,
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const dateStr = new Date().toISOString().split('T')[0]
+    const safeEmail = (state.email ?? 'unknown').replace(/[^a-z0-9]/gi, '_')
+    a.href = url
+    a.download = `NRR_Diagnostic_${safeEmail}_${dateStr}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+    track({ name: 'diagnostic_pdf_downloaded', props: {} })
+  }
+
   const radarVals: [number, number, number, number] = [
     scores.blockScores.reporting / 5,
     scores.blockScores.retention / 5,
@@ -501,6 +532,26 @@ function DiagnosticVerdict() {
             The full assessment takes 15–45 minutes depending on which capabilities you choose.
             We&rsquo;ve pre-selected <strong>{BLOCK_DISPLAY_NAMES[scores.weakestBlock]}</strong> based on your results.
           </p>
+        </div>
+
+        {/* ── PDF soft link ───────────────────────────────────────────── */}
+        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+          <span style={{ fontSize: '13px', color: '#9AA7B3' }}>
+            Or download your diagnostic as a{' '}
+            <button
+              type="button"
+              onClick={handleDownloadDiagnosticPDF}
+              style={{
+                fontSize: '13px', color: '#9AA7B3', background: 'none', border: 'none',
+                cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px',
+                padding: 0, fontFamily: 'inherit',
+              }}
+              onMouseEnter={(ev) => { ev.currentTarget.style.color = '#0E2B41' }}
+              onMouseLeave={(ev) => { ev.currentTarget.style.color = '#9AA7B3' }}
+            >
+              PDF →
+            </button>
+          </span>
         </div>
 
         {/* ── Footer ──────────────────────────────────────────────────── */}
