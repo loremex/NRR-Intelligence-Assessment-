@@ -61,11 +61,12 @@ function determineSpecs(nrr: number): ScenarioSpec[] {
     ]
   }
   if (nrr < 1.10) {
-    return [
-      { targetNRR: 1.10, label: 'Move to Strong' },
-      { targetNRR: 1.15, label: 'Mid-Strong' },
-      { targetNRR: 1.20, label: 'Reach World-class' },
-    ]
+    const labels = ['Move to Strong', 'Mid-Strong', 'Reach World-class']
+    return [0.05, 0.10, 0.20].map((off, i) => {
+      const raw = nrr + off
+      const capped = raw > 1.30
+      return { targetNRR: capped ? 1.30 : raw, label: capped ? '+30pp+' : labels[i]! }
+    })
   }
   if (nrr < 1.20) {
     return [
@@ -101,6 +102,7 @@ export function computeEVUplift(
   currentNRR: number | null,
 ): EVUpliftResult | null {
   if (!startingMRR || startingMRR <= 0 || currentNRR === null) return null
+  if (startingMRR < 800_000) return null
 
   const arrBase = startingMRR * 12
   const tier = getTier(currentNRR)

@@ -49,7 +49,7 @@ describe('formatEVUplift', () => {
 })
 
 describe('computeEVUplift', () => {
-  it('Test 1: $1M MRR, 108% NRR → Net positive tier, 3 scenarios', () => {
+  it('Test 1: $1M MRR, 108% NRR → Net positive tier, 3 relative scenarios', () => {
     const result = computeEVUplift(1_000_000, 1.08)
     expect(result).not.toBeNull()
     expect(result!.arrBase).toBe(12_000_000)
@@ -59,41 +59,45 @@ describe('computeEVUplift', () => {
     expect(result!.scenarios).toHaveLength(3)
 
     const [s1, s2, s3] = result!.scenarios
-    expect(s1!.targetNRR).toBe(1.10)
-    expect(s1!.ppDelta).toBe(2)
-    expect(s1!.evUplift).toBe(18_000_000)
+    // relative targets: 1.08 + 0.05/0.10/0.20
+    expect(s1!.targetNRR).toBeCloseTo(1.13)
+    expect(s1!.ppDelta).toBe(5)
+    expect(s1!.evUplift).toBe(45_000_000)
     expect(s1!.ppCapped).toBe(false)
     expect(s1!.label).toBe('Move to Strong')
 
-    expect(s2!.targetNRR).toBe(1.15)
-    expect(s2!.ppDelta).toBe(7)
-    expect(s2!.evUplift).toBe(63_000_000)
+    expect(s2!.targetNRR).toBeCloseTo(1.18)
+    expect(s2!.ppDelta).toBe(10)
+    expect(s2!.evUplift).toBe(90_000_000)
+    expect(s2!.label).toBe('Mid-Strong')
 
-    expect(s3!.targetNRR).toBe(1.20)
-    expect(s3!.ppDelta).toBe(12)
-    expect(s3!.evUplift).toBe(108_000_000)
+    expect(s3!.targetNRR).toBeCloseTo(1.28)
+    expect(s3!.ppDelta).toBe(20)
+    expect(s3!.evUplift).toBe(180_000_000)
+    expect(s3!.ppCapped).toBe(false)
+    expect(s3!.label).toBe('Reach World-class')
   })
 
-  it('Test 2: $500K MRR, 88% NRR → Declining tier, 3rd scenario capped at 30pp', () => {
-    const result = computeEVUplift(500_000, 0.88)
+  it('Test 2: $1M MRR, 88% NRR → Declining tier, 3rd scenario capped at 30pp', () => {
+    const result = computeEVUplift(1_000_000, 0.88)
     expect(result).not.toBeNull()
-    expect(result!.arrBase).toBe(6_000_000)
+    expect(result!.arrBase).toBe(12_000_000)
     expect(result!.multiplier).toBe(0.30)
-    expect(result!.evPerPP).toBe(1_800_000)
+    expect(result!.evPerPP).toBe(3_600_000)
     expect(result!.scenarios).toHaveLength(3)
 
     const [s1, s2, s3] = result!.scenarios
     expect(s1!.ppDelta).toBe(12)
-    expect(s1!.evUplift).toBe(21_600_000)
+    expect(s1!.evUplift).toBe(43_200_000)
     expect(s1!.ppCapped).toBe(false)
 
     expect(s2!.ppDelta).toBe(22)
-    expect(s2!.evUplift).toBe(39_600_000)
+    expect(s2!.evUplift).toBe(79_200_000)
     expect(s2!.ppCapped).toBe(false)
 
     // 120% target: raw 32pp → capped to 30
     expect(s3!.ppDelta).toBe(30)
-    expect(s3!.evUplift).toBe(54_000_000)
+    expect(s3!.evUplift).toBe(108_000_000)
     expect(s3!.ppCapped).toBe(true)
     expect(s3!.label).toBe('Reach World-class')
   })
@@ -127,6 +131,50 @@ describe('computeEVUplift', () => {
     expect(computeEVUplift(null, null)).toBeNull()
     expect(computeEVUplift(0, 1.08)).toBeNull()
     expect(computeEVUplift(-1, 1.08)).toBeNull()
+    expect(computeEVUplift(700_000, 1.08)).toBeNull()
+    expect(computeEVUplift(799_999, 1.08)).toBeNull()
+  })
+
+  it('$800K MRR boundary → valid result (arrBase $9.6M, evPerPP $7.2M)', () => {
+    const result = computeEVUplift(800_000, 1.08)
+    expect(result).not.toBeNull()
+    expect(result!.arrBase).toBe(9_600_000)
+    expect(result!.multiplier).toBe(0.75)
+    expect(result!.evPerPP).toBe(7_200_000)
+    expect(result!.scenarios).toHaveLength(3)
+
+    const [s1, s2, s3] = result!.scenarios
+    expect(s1!.ppDelta).toBe(5)
+    expect(s1!.evUplift).toBe(36_000_000)
+    expect(s2!.ppDelta).toBe(10)
+    expect(s2!.evUplift).toBe(72_000_000)
+    expect(s3!.ppDelta).toBe(20)
+    expect(s3!.evUplift).toBe(144_000_000)
+  })
+
+  it('$1M MRR, exactly 100% NRR → Net positive tier, 3 relative scenarios', () => {
+    const result = computeEVUplift(1_000_000, 1.00)
+    expect(result).not.toBeNull()
+    expect(result!.multiplier).toBe(0.75)
+    expect(result!.evPerPP).toBe(9_000_000)
+    expect(result!.scenarios).toHaveLength(3)
+
+    const [s1, s2, s3] = result!.scenarios
+    // relative: 1.00 + 0.05/0.10/0.20
+    expect(s1!.targetNRR).toBeCloseTo(1.05)
+    expect(s1!.ppDelta).toBe(5)
+    expect(s1!.evUplift).toBe(45_000_000)
+    expect(s1!.label).toBe('Move to Strong')
+
+    expect(s2!.targetNRR).toBeCloseTo(1.10)
+    expect(s2!.ppDelta).toBe(10)
+    expect(s2!.evUplift).toBe(90_000_000)
+    expect(s2!.label).toBe('Mid-Strong')
+
+    expect(s3!.targetNRR).toBeCloseTo(1.20)
+    expect(s3!.ppDelta).toBe(20)
+    expect(s3!.evUplift).toBe(180_000_000)
+    expect(s3!.label).toBe('Reach World-class')
   })
 
   it('Eroding band: 95% NRR shows 3 scenarios toward Net positive, Strong, World-class', () => {
