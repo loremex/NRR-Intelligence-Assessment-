@@ -4,7 +4,6 @@ import { useAssessmentState } from '../lib/state'
 import {
   computeDiagnosticScores,
   getDiagnosticTemplate,
-  getDivergenceNote,
   MATURITY_STAGE_DESCRIPTIONS,
   MATURITY_LABELS,
   BLOCK_DISPLAY_NAMES,
@@ -12,7 +11,6 @@ import {
   type DiagnosticBlock,
   type MaturityStage,
 } from '../content/diagnosticTemplates'
-import { EVUpliftCard } from '../components/scorecard/EVUpliftCard'
 import { computeNRR } from '../lib/nrr'
 import { computeEVUplift } from '../lib/evUplift'
 import { track } from '../lib/analytics'
@@ -275,7 +273,6 @@ function DiagnosticVerdict() {
   if (!answers || !scores || !template) return <Navigate to="/diagnostic" replace />
   if (!answers.q5_priority.choice) return <Navigate to="/diagnostic" replace />
 
-  const divergenceNote = getDivergenceNote(scores.weakestBlock, answers.q5_priority.choice)
   const sortedBlocks: DiagnosticBlock[] = [
     scores.weakestBlock,
     ...BLOCK_PRIORITY.filter((b) => b !== scores.weakestBlock),
@@ -460,49 +457,6 @@ function DiagnosticVerdict() {
           </p>
         </div>
 
-        {/* ── Recommendations ─────────────────────────────────────────── */}
-        <div
-          data-reveal="recs"
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid #E3E8EE',
-            borderRadius: '6px',
-            padding: '32px 36px',
-            marginTop: '20px',
-            boxShadow: '0 1px 2px rgba(14,43,65,.05)',
-          }}
-        >
-          <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase', color: '#6B7B89', marginBottom: '20px' }}>
-            Where to focus — {BLOCK_DISPLAY_NAMES[scores.weakestBlock]}
-          </div>
-          <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {template.recommendations.map((rec, i) => (
-              <li key={i} style={{ display: 'flex', gap: '16px', marginBottom: i < 2 ? '16px' : 0 }}>
-                <span style={{
-                  flexShrink: 0, width: '24px', height: '24px',
-                  borderRadius: '999px', background: '#2E63EE',
-                  color: '#fff', fontSize: '12px', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  marginTop: '2px',
-                }}>
-                  {i + 1}
-                </span>
-                <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.65, color: '#374151' }}>{rec}</p>
-              </li>
-            ))}
-          </ol>
-          {divergenceNote && (
-            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E3E8EE' }}>
-              <p style={{ margin: 0, fontSize: '14px', color: '#6B7B89', lineHeight: 1.6, fontStyle: 'italic' }}>
-                {divergenceNote}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* ── EV Uplift ───────────────────────────────────────────────── */}
-        <EVUpliftCard />
-
         {/* ── CTAs ────────────────────────────────────────────────────── */}
         <div
           data-reveal="cta"
@@ -511,7 +465,7 @@ function DiagnosticVerdict() {
             border: '1px solid #E3E8EE',
             borderRadius: '6px',
             padding: '32px 36px',
-            marginTop: '20px',
+            marginTop: '28px',
             boxShadow: '0 1px 2px rgba(14,43,65,.05)',
           }}
         >
