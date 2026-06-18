@@ -6,7 +6,7 @@ import { getCapabilityOverall, getThreeWeakestLevers, DIMS, getActionDimAvg, get
 import { track } from '../lib/analytics'
 import { composeRecommendation } from '../lib/recommendations'
 import { computeNRR, formatCurrency } from '../lib/nrr'
-import { computeEVUplift } from '../lib/evUplift'
+import { computeEVUplift, formatEVUplift } from '../lib/evUplift'
 import type { PDFParams, PDFCapabilityData, PDFCrossCapRow } from '../lib/pdfGenerator'
 import { completeSession, type ScorecardPayload } from '../lib/api'
 import { MeasurementHeatmap } from '../components/scorecard/MeasurementHeatmap'
@@ -35,11 +35,6 @@ function fmtUSD(n: number): string {
   const sign = n < 0 ? '-' : ''
   const a = Math.abs(n)
   return sign + '$' + a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-function fmtM(v: number): string {
-  if (Math.abs(v) >= 1000) return v.toLocaleString('en-US', { maximumFractionDigits: 0 })
-  return v.toFixed(1)
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -670,7 +665,6 @@ function Scorecard() {
               <div style={{ display: 'grid', gap: 14 }}>
                 {evResult.scenarios.map((s, i) => {
                   const barPct = s.evUplift / evMax * 100 * e
-                  const displayM = s.evUplift / 1_000_000 * e
                   return (
                     <div key={i} style={{ display: 'grid', gridTemplateColumns: '230px 1fr 150px', alignItems: 'center', gap: 18 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
@@ -683,7 +677,7 @@ function Scorecard() {
                         <div style={{ position: 'absolute', left: 0, top: 0, height: 10, borderRadius: 999, width: `${barPct}%`, background: 'linear-gradient(90deg,#3D6090,#5B7A9E)' }} />
                       </div>
                       <span style={{ fontFamily: 'Georgia, serif', fontSize: 20, fontWeight: 700, color: '#243B52', textAlign: 'right' }}>
-                        +${fmtM(displayM)}M
+                        {formatEVUplift(s.evUplift * e)}
                       </span>
                     </div>
                   )

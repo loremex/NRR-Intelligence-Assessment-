@@ -4,6 +4,7 @@
 
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { formatEVUplift } from './evUplift'
 
 // jspdf-autotable v5 no longer auto-attaches to the jsPDF prototype in ESM
 // environments (window.jsPDF is never set in Vite modules). We use the
@@ -102,15 +103,6 @@ function fmtPct(n: number | null): string {
   return n !== null ? `${(n * 100).toFixed(1)}%` : '—'
 }
 
-function fmtEV(value: number): string {
-  if (value >= 1_000_000) {
-    const m = value / 1_000_000
-    const mStr = m % 1 === 0 ? m.toFixed(0) : parseFloat(m.toFixed(1)).toString()
-    return `+$${mStr}M`
-  }
-  if (value >= 100_000) return `+$${Math.round(value / 1_000)}K`
-  return `+$${Math.round(value).toLocaleString('en-US')}`
-}
 
 function navBar(doc: jsPDF, rightText = ''): void {
   const w = doc.internal.pageSize.getWidth()
@@ -224,7 +216,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
       if (s) {
         doc.setFontSize(8)
         doc.setTextColor(...DARK)
-        doc.text(`${s.label}: ${fmtEV(s.evUplift)} EV preserved`, 14, y)
+        doc.text(`${s.label}: ${formatEVUplift(s.evUplift)} EV preserved`, 14, y)
         y += 5
       }
     } else {
@@ -232,7 +224,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
         const ppStr = `+${s.ppDelta}pp${s.ppCapped ? '+' : ''}`
         doc.setFontSize(8)
         doc.setTextColor(...DARK)
-        doc.text(`${s.label} (${ppStr}): ${fmtEV(s.evUplift)}`, 14, y)
+        doc.text(`${s.label} (${ppStr}): ${formatEVUplift(s.evUplift)}`, 14, y)
         y += 5
       }
     }
@@ -542,7 +534,7 @@ export function generateDiagnosticPDF(params: PDFDiagnosticParams): Blob {
       for (const s of params.evUplift.scenarios) {
         doc.setFontSize(8)
         doc.setTextColor(...DARK)
-        doc.text(`${s.label} (+${s.ppDelta}pp${s.ppCapped ? '+' : ''}): ${fmtEV(s.evUplift)}`, 14, y)
+        doc.text(`${s.label} (+${s.ppDelta}pp${s.ppCapped ? '+' : ''}): ${formatEVUplift(s.evUplift)}`, 14, y)
         y += 5
       }
     }

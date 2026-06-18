@@ -73,11 +73,9 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
 // ─── HTML template ────────────────────────────────────────────────────────────
 
 function fmtEV(value: number): string {
-  if (value >= 1_000_000) {
-    const m = value / 1_000_000
-    const mStr = m % 1 === 0 ? m.toFixed(0) : parseFloat(m.toFixed(1)).toString()
-    return `+$${mStr}M`
-  }
+  if (value >= 1_000_000_000) return `+$${parseFloat((value / 1_000_000_000).toFixed(1))}B`
+  if (value >= 10_000_000) return `+$${Math.round(value / 1_000_000)}M`
+  if (value >= 1_000_000) return `+$${parseFloat((value / 1_000_000).toFixed(1))}M`
   if (value >= 100_000) return `+$${Math.round(value / 1_000)}K`
   return `+$${Math.round(value).toLocaleString('en-US')}`
 }
