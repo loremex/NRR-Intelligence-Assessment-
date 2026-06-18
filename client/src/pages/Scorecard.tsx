@@ -149,7 +149,6 @@ function Scorecard() {
   const [state, dispatch] = useAssessmentState()
   const [pdfDownloading, setPdfDownloading] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [matrixCap, setMatrixCap] = useState<ActionCapKey | null>(null)
   const [selLeverId, setSelLeverId] = useState<string | null>(null)
   const [hoverRowId, setHoverRowId] = useState<string | null>(null)
   const [expandedCapId, setExpandedCapId] = useState<CapKey | null>(null)
@@ -197,28 +196,16 @@ function Scorecard() {
   const grrPct = nrrResult?.grr !== null && nrrResult?.grr !== undefined ? nrrResult.grr * 100 : null
 
   // Current matrix cap (controlled if user picked a tab, else default to weakest)
-  const currentMatrixCap = matrixCap ?? weakestCap ?? (actionCaps.length > 0 ? actionCaps[0] : null)
-  const matrixCapObj = currentMatrixCap ? getCapability(currentMatrixCap) as ActionCapability : null
-  const matrixCapOverall = currentMatrixCap ? getCapabilityOverall(currentMatrixCap, picks) : null
+  const allLeverDescById: Record<string, string> = {}
+  actionCaps.forEach((k) => {
+    const c = getCapability(k) as ActionCapability | null
+    c?.levers.forEach((l) => { allLeverDescById[l.id] = l.description })
+  })
 
-  const matrixLevers = matrixCapObj
-    ? matrixCapObj.levers.map((l) => {
-        const capPicks = picks[currentMatrixCap!]
-        const dimPicks = capPicks[l.id] ?? {}
-        const cells = DIMS.map((d) => dimPicks[d] ?? null)
-        const avg = getLeverAvg(dimPicks)
-        return { id: l.id, name: l.name, description: l.description, cells, avg, gap: avg !== null ? 5 - avg : null }
-      })
-    : []
-
-  const top3Levers = currentMatrixCap
-    ? getThreeWeakestLevers(currentMatrixCap, picks).filter((l) => l.score !== null).slice(0, 3)
-    : []
-
-  const leverDescById: Record<string, string> = {}
-  if (matrixCapObj) {
-    matrixCapObj.levers.forEach((l) => { leverDescById[l.id] = l.description })
-  }
+  const pooledTop3 = actionCaps
+    .flatMap((k) => getThreeWeakestLevers(k, picks).filter((l) => l.score !== null))
+    .sort((a, b) => (a.score ?? 5) - (b.score ?? 5))
+    .slice(0, 3)
 
   // ── Animation effect ────────────────────────────────────────────────────────
 
@@ -625,10 +612,7 @@ function Scorecard() {
 
               function handleCapClick() {
                 setExpandedCapId(isExpanded ? null : capKey)
-                if (capKey !== 'measurement') {
-                  setMatrixCap(capKey as ActionCapKey)
-                  setSelLeverId(null)
-                }
+                if (capKey !== 'measurement') setSelLeverId(null)
               }
 
               return (
@@ -691,29 +675,33 @@ function Scorecard() {
           </div>
         )}
 
-        {/* Capability matrix (action caps) */}
-        {currentMatrixCap && (
-          <>
-            {/* Matrix card */}
-            <div
-              data-reveal="matrix"
-              style={{ ...cardStyle, marginTop: 24 }}
-            >
+        {/* Capability matrices — one per selected action cap */}
+        {actionCaps.map((capKey) => {
+          const cap = getCapability(capKey) as ActionCapability | null
+          const capOverall = getCapabilityOverall(capKey, picks)
+          const capPicks = picks[capKey]
+          const capLevers = cap ? cap.levers.map((l) => {
+            const dimPicks = capPicks[l.id] ?? {}
+            const avg = getLeverAvg(dimPicks)
+            return { id: l.id, name: l.name, description: l.description, cells: DIMS.map((d) => dimPicks[d] ?? null), avg, gap: avg !== null ? 5 - avg : null }
+          }) : []
+          return (
+            <div key={capKey} data-reveal="matrix" style={{ ...cardStyle, marginTop: 24 }}>
               {/* Gauge + cap name + legend */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 6, flexWrap: 'wrap' as const }}>
-                <GaugeSVG score={matrixCapOverall} progress={e} />
+                <GaugeSVG score={capOverall} progress={e} />
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const }}>
                     <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 26, fontWeight: 700, color: '#0E2B41', margin: 0 }}>
-                      {matrixCapObj?.name}
+                      {cap?.name}
                     </h2>
-                    {matrixCapOverall !== null && (
+                    {capOverall !== null && (
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#3D6090', background: '#EAEFF5', padding: '5px 12px', borderRadius: 999, whiteSpace: 'nowrap' as const }}>
-                        {matrixCapOverall.toFixed(2)} / 5
+                        {capOverall.toFixed(2)} / 5
                       </span>
                     )}
                   </div>
-                  <p style={{ margin: '5px 0 0', fontSize: 14, color: '#6B7B89' }}>{matrixCapObj?.tagline}</p>
+                  <p style={{ margin: '5px 0 0', fontSize: 14, color: '#6B7B89' }}>{cap?.tagline}</p>
                 </div>
                 {/* Legend */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -739,7 +727,7 @@ function Scorecard() {
                 </div>
                 {/* Rows */}
                 <div style={{ display: 'grid', gap: 2, marginTop: 6, minWidth: 640 }}>
-                  {matrixLevers.map((lv, i) => {
+                  {capLevers.map((lv, i) => {
                     const isSel = selLeverId === lv.id
                     const isHov = hoverRowId === lv.id
                     return (
@@ -777,58 +765,58 @@ function Scorecard() {
                 </div>
               </div>
             </div>
+          )
+        })}
 
-            {/* Top 3 levers */}
-            {top3Levers.length > 0 && (
-              <div data-reveal="top" style={{ marginTop: 26 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#6B7B89', marginBottom: 14 }}>
-                  3 highest-impact levers to address
-                </div>
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {top3Levers.map((lv, k) => {
-                    const isSel = selLeverId === lv.id
-                    return (
-                      <div
-                        key={lv.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setSelLeverId(isSel ? null : lv.id)}
-                        onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setSelLeverId(isSel ? null : lv.id) }}
-                        onMouseEnter={(ev) => { ev.currentTarget.style.transform = 'translateY(-3px)' }}
-                        onMouseLeave={(ev) => { ev.currentTarget.style.transform = 'none' }}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '40px 1fr auto auto',
-                          alignItems: 'center',
-                          gap: 16,
-                          background: '#FFFFFF',
-                          border: `1px solid ${isSel ? '#3D6090' : '#E3E8EE'}`,
-                          borderRadius: 12,
-                          padding: '16px 20px',
-                          cursor: 'pointer',
-                          transition: 'transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s, border-color .2s',
-                          boxShadow: isSel ? '0 12px 30px rgba(14,43,65,.12)' : 'none',
-                          userSelect: 'none',
-                        }}
-                      >
-                        <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#C2CAD3' }}>{k + 1}</div>
-                        <div>
-                          <div style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{leverDescById[lv.id] ?? lv.name}</div>
-                          <div style={{ fontSize: 12, color: '#AEB8C2', marginTop: 2 }}>{lv.name}</div>
-                        </div>
-                        <span style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, color: cellFg(lv.score), background: cellBg(lv.score), padding: '5px 14px', borderRadius: 8 }}>
-                          {lv.score !== null ? lv.score.toFixed(2) : '—'}
-                        </span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7B89', whiteSpace: 'nowrap' }}>
-                          {lv.gapToL5 !== null ? `+${lv.gapToL5.toFixed(2)} to L5` : '—'}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </>
+        {/* Top 3 levers — pooled across ALL selected action caps */}
+        {pooledTop3.length > 0 && (
+          <div data-reveal="top" style={{ marginTop: 26 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#6B7B89', marginBottom: 14 }}>
+              3 highest-impact levers to address
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {pooledTop3.map((lv, k) => {
+                const isSel = selLeverId === lv.id
+                return (
+                  <div
+                    key={lv.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelLeverId(isSel ? null : lv.id)}
+                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setSelLeverId(isSel ? null : lv.id) }}
+                    onMouseEnter={(ev) => { ev.currentTarget.style.transform = 'translateY(-3px)' }}
+                    onMouseLeave={(ev) => { ev.currentTarget.style.transform = 'none' }}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '40px 1fr auto auto',
+                      alignItems: 'center',
+                      gap: 16,
+                      background: '#FFFFFF',
+                      border: `1px solid ${isSel ? '#3D6090' : '#E3E8EE'}`,
+                      borderRadius: 12,
+                      padding: '16px 20px',
+                      cursor: 'pointer',
+                      transition: 'transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s, border-color .2s',
+                      boxShadow: isSel ? '0 12px 30px rgba(14,43,65,.12)' : 'none',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#C2CAD3' }}>{k + 1}</div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{allLeverDescById[lv.id] ?? lv.name}</div>
+                      <div style={{ fontSize: 12, color: '#AEB8C2', marginTop: 2 }}>{lv.name}</div>
+                    </div>
+                    <span style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, color: cellFg(lv.score), background: cellBg(lv.score), padding: '5px 14px', borderRadius: 8 }}>
+                      {lv.score !== null ? lv.score.toFixed(2) : '—'}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7B89', whiteSpace: 'nowrap' }}>
+                      {lv.gapToL5 !== null ? `+${lv.gapToL5.toFixed(2)} to L5` : '—'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
 
         {/* Measurement section */}
