@@ -12,13 +12,6 @@ interface DiagnosticAnswerPayload {
   q5_priority: string; q6_text: string | null
 }
 
-interface EVEmailScenario { label: string; ppDelta: number; ppCapped: boolean; evUplift: number }
-interface EVEmailData {
-  scenarios: EVEmailScenario[]
-  topOfMarketMessage: string | null
-  startingMRRFormatted: string
-}
-
 interface SendDiagnosticBody {
   sessionId: string | null
   contactId: string | null
@@ -32,7 +25,6 @@ interface SendDiagnosticBody {
   verdictDescription: string
   recommendations: [string, string, string]
   answers: DiagnosticAnswerPayload
-  evUplift: EVEmailData | null
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -63,7 +55,7 @@ router.post('/', async (req, res) => {
   const {
     contactId, email, completedAt,
     maturityStage, weakestBlock, strongestBlock, blockScores,
-    q5Priority, verdictDescription, recommendations, answers, evUplift,
+    q5Priority, verdictDescription, recommendations, answers,
   } = req.body
 
   const [hubspotResult, emailResult] = await Promise.allSettled([
@@ -75,7 +67,7 @@ router.post('/', async (req, res) => {
       : Promise.reject(new Error('No contactId — cannot update HubSpot')),
     sendDiagnosticEmail({
       to: email, maturityStage, weakestBlock, strongestBlock, blockScores,
-      verdictDescription, recommendations, answers, evUplift: evUplift ?? null,
+      verdictDescription, recommendations, answers,
     }),
   ])
 

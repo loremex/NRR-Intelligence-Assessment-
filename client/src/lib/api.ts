@@ -41,19 +41,6 @@ export interface ScorecardPayload {
   recommendationSentences: string[]
 }
 
-export interface EVEmailScenario {
-  label: string
-  ppDelta: number
-  ppCapped: boolean
-  evUplift: number
-}
-
-export interface EVEmailData {
-  scenarios: EVEmailScenario[]
-  topOfMarketMessage: string | null
-  startingMRRFormatted: string
-}
-
 export interface CompleteSessionPayload {
   sessionId: string | null
   contactId: string | null
@@ -61,7 +48,6 @@ export interface CompleteSessionPayload {
   completedAt: string
   scorecard: ScorecardPayload
   pdfBase64: string
-  evUplift: EVEmailData | null
 }
 
 export interface CompleteSessionResult {
@@ -114,7 +100,6 @@ export interface DiagnosticPayload {
   verdictDescription: string
   recommendations: [string, string, string]
   answers: DiagnosticAnswerPayload
-  evUplift: EVEmailData | null
 }
 
 export interface DiagnosticResult {

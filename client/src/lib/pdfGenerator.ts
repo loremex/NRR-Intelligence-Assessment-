@@ -4,7 +4,6 @@
 
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { formatEVUplift } from './evUplift'
 
 // jspdf-autotable v5 no longer auto-attaches to the jsPDF prototype in ESM
 // environments (window.jsPDF is never set in Vite modules). We use the
@@ -49,13 +48,6 @@ export interface PDFCrossCapRow {
   avg: number | null
 }
 
-export interface PDFEVScenario {
-  label: string
-  ppDelta: number
-  ppCapped: boolean
-  evUplift: number
-}
-
 export interface PDFParams {
   email: string
   generatedAt: string
@@ -66,7 +58,6 @@ export interface PDFParams {
   reportingMaturity: number | null
   overallIntelligence: number | null
   distanceToL5: number | null
-  evUplift: { scenarios: PDFEVScenario[]; topOfMarketMessage: string | null } | null
   capabilities: PDFCapabilityData[]
   crossCapDims: PDFCrossCapRow[]
   actionCapNames: string[]
@@ -371,55 +362,6 @@ export function generateScorecardPDF(params: PDFParams): Blob {
 
   thinRule(doc, y)
   y += 5
-
-  // Section 3: Enterprise Value Impact
-  if (params.evUplift && params.evUplift.scenarios.length > 0) {
-    y = sectionHeader(doc, 'ENTERPRISE VALUE IMPACT', y)
-
-    if (params.evUplift.topOfMarketMessage) {
-      const msgLines = doc.splitTextToSize(params.evUplift.topOfMarketMessage, pageWidth - 28) as string[]
-      doc.setFontSize(7.5)
-      doc.setFont('helvetica', 'italic')
-      doc.setTextColor(...GRAY)
-      doc.text(msgLines, 14, y)
-      y += msgLines.length * 4 + 3
-      const s = params.evUplift.scenarios[0]
-      if (s) {
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(...DARK)
-        doc.text(`${s.label}: ${formatEVUplift(s.evUplift)} EV preserved`, 14, y)
-        y += 5
-      }
-    } else {
-      autoTable(doc, {
-        startY: y,
-        head: [['Scenario', 'Δ', 'EV Uplift']],
-        body: params.evUplift.scenarios.map((s) => [
-          s.label,
-          `+${s.ppDelta}pp${s.ppCapped ? '+' : ''}`,
-          formatEVUplift(s.evUplift),
-        ]),
-        theme: 'grid',
-        headStyles: { fillColor: N800, textColor: [255, 255, 255] as [number, number, number], fontSize: 7.5, fontStyle: 'bold' },
-        bodyStyles: { fontSize: 8, textColor: DARK },
-        columnStyles: {
-          1: { halign: 'center', cellWidth: 22 },
-          2: { halign: 'right', fontStyle: 'bold', cellWidth: 35 },
-        },
-        margin: { left: 14, right: 14 },
-      })
-      y = doc.lastAutoTable.finalY + 3
-    }
-
-    doc.setFontSize(6.5)
-    doc.setFont('helvetica', 'italic')
-    doc.setTextColor(...GRAY)
-    const disclaimer = 'Indicative — based on public SaaS valuation benchmarks. Real EV varies by growth rate, margin, and market conditions.'
-    const disclaimerLines = doc.splitTextToSize(disclaimer, pageWidth - 28) as string[]
-    doc.text(disclaimerLines, 14, y)
-    doc.setFont('helvetica', 'normal')
-  }
 
   // ── Page 2: Diagnostic Findings ───────────────────────────────────────────
 
@@ -757,7 +699,6 @@ export interface PDFDiagnosticParams {
   blockScores: Record<string, 1 | 2 | 3 | 4 | 5>
   verdictDescription: string
   recommendations: [string, string, string]
-  evUplift: { scenarios: PDFEVScenario[]; topOfMarketMessage: string | null; startingMRRFormatted: string } | null
   q1_text: string | null
   q2_text: string | null
   q3_text: string | null
@@ -869,34 +810,6 @@ export function generateDiagnosticPDF(params: PDFDiagnosticParams): Blob {
     y += lines.length * 4.5 + 2
   })
   y += 4
-
-  // EV uplift
-  if (params.evUplift && params.evUplift.scenarios.length > 0) {
-    doc.setFontSize(8)
-    doc.setTextColor(...NAVY)
-    doc.setFont('helvetica', 'bold')
-    doc.text('ENTERPRISE VALUE IMPACT', 14, y)
-    doc.setFont('helvetica', 'normal')
-    y += 5
-    if (params.evUplift.topOfMarketMessage) {
-      const msgLines = doc.splitTextToSize(params.evUplift.topOfMarketMessage, pageWidth - 28) as string[]
-      doc.setFontSize(8)
-      doc.setTextColor(...GRAY)
-      doc.text(msgLines, 14, y)
-      y += msgLines.length * 4 + 3
-    } else {
-      for (const s of params.evUplift.scenarios) {
-        doc.setFontSize(8)
-        doc.setTextColor(...DARK)
-        doc.text(`${s.label} (+${s.ppDelta}pp${s.ppCapped ? '+' : ''}): ${formatEVUplift(s.evUplift)}`, 14, y)
-        y += 5
-      }
-    }
-    doc.setFontSize(6.5)
-    doc.setTextColor(...GRAY)
-    doc.text('Indicative — based on public SaaS valuation benchmarks.', 14, y)
-    y += 8
-  }
 
   // Free text answers (sales reference)
   const freeTextEntries = [

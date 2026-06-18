@@ -11,19 +11,6 @@ function getResend(): Resend {
   return _resend
 }
 
-interface EVEmailScenario {
-  label: string
-  ppDelta: number
-  ppCapped: boolean
-  evUplift: number
-}
-
-interface EVEmailData {
-  scenarios: EVEmailScenario[]
-  topOfMarketMessage: string | null
-  startingMRRFormatted: string
-}
-
 export interface SendScorecardEmailParams {
   to: string
   pdfBase64: string
@@ -32,7 +19,6 @@ export interface SendScorecardEmailParams {
     weakestCapability: string | null
     recommendationSentences: string[]
   }
-  evUplift?: EVEmailData | null
 }
 
 export interface SendEmailResult {
@@ -66,57 +52,10 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 2): Promise<T> {
   throw lastErr
 }
 
-function fmtEV(value: number): string {
-  if (value >= 1_000_000_000) return `+$${parseFloat((value / 1_000_000_000).toFixed(1))}B`
-  if (value >= 10_000_000) return `+$${Math.round(value / 1_000_000)}M`
-  if (value >= 1_000_000) return `+$${parseFloat((value / 1_000_000).toFixed(1))}M`
-  if (value >= 100_000) return `+$${Math.round(value / 1_000)}K`
-  return `+$${Math.round(value).toLocaleString('en-US')}`
-}
-
-function buildEVBlock(evUplift: EVEmailData | null | undefined): string {
-  if (!evUplift || evUplift.scenarios.length === 0) return ''
-
-  const { scenarios, topOfMarketMessage, startingMRRFormatted } = evUplift
-  let inner: string
-
-  if (topOfMarketMessage) {
-    const s = scenarios[0]
-    inner = `<p style="margin:0 0 8px;font-size:13px;color:#1E293B;line-height:1.6;">${topOfMarketMessage}</p>`
-    if (s) {
-      inner += `<p style="margin:0;font-size:13px;color:#1E293B;">&#x2022; ${s.label}: ${fmtEV(s.evUplift)} EV preserved</p>`
-    }
-  } else {
-    const rows = scenarios
-      .map((s) => `<li>${s.label} (+${s.ppDelta}pp${s.ppCapped ? '+' : ''}): <strong>${fmtEV(s.evUplift)}</strong></li>`)
-      .join('\n      ')
-    inner = `<p style="margin:0 0 8px;font-size:13px;color:#1E293B;line-height:1.6;">
-      At your ${startingMRRFormatted} starting MRR, moving NRR by even a few percentage points could unlock material enterprise value:
-    </p>
-    <ul style="margin:0 0 8px;padding-left:20px;font-size:13px;color:#1E293B;line-height:1.8;">
-      ${rows}
-    </ul>`
-  }
-
-  return `
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#F0FDF4;border-radius:8px;margin-bottom:24px;border:1px solid #BBF7D0;">
-              <tr>
-                <td style="padding:16px 20px;">
-                  <p style="margin:0 0 10px;font-size:12px;color:#064E3B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Enterprise Value Impact</p>
-                  ${inner}
-                  <p style="margin:8px 0 0;font-size:11px;color:#64748B;font-style:italic;">
-                    Indicative — based on public SaaS valuation benchmarks. Real EV varies by growth rate, margin, and market conditions.
-                  </p>
-                </td>
-              </tr>
-            </table>`
-}
-
 function buildEmailHtml(params: SendScorecardEmailParams, baseUrl: string, calendlyUrl: string): string {
   const { overallIntelligence, weakestCapability, recommendationSentences } = params.scorecardSummary
   const oiText = overallIntelligence !== null ? overallIntelligence.toFixed(2) : '—'
   const rec = recommendationSentences[0] ?? ''
-  const evBlock = buildEVBlock(params.evUplift)
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -152,7 +91,6 @@ function buildEmailHtml(params: SendScorecardEmailParams, baseUrl: string, calen
                 </td>
               </tr>
             </table>
-            ${evBlock}
             <p style="margin:0 0 24px;font-size:14px;color:#1E293B;line-height:1.7;">
               Open the attached PDF to see your full scorecard with heatmaps and our recommendation for where to focus.
             </p>
@@ -236,15 +174,6 @@ export interface DiagnosticAnswerData {
   q6_text: string | null
 }
 
-interface EVEmailScenarioDiag {
-  label: string; ppDelta: number; ppCapped: boolean; evUplift: number
-}
-interface EVEmailDataDiag {
-  scenarios: EVEmailScenarioDiag[]
-  topOfMarketMessage: string | null
-  startingMRRFormatted: string
-}
-
 export interface SendDiagnosticEmailParams {
   to: string
   maturityStage: string
@@ -254,7 +183,6 @@ export interface SendDiagnosticEmailParams {
   verdictDescription: string
   recommendations: [string, string, string]
   answers: DiagnosticAnswerData
-  evUplift: EVEmailDataDiag | null
 }
 
 const MATURITY_BG: Record<number, string> = {
@@ -268,7 +196,7 @@ const BLOCK_NAME: Record<string, string> = {
 }
 
 function buildDiagnosticEmailHtml(params: SendDiagnosticEmailParams, calendlyUrl: string): string {
-  const { maturityStage, weakestBlock, strongestBlock, blockScores, verdictDescription, recommendations, answers, evUplift } = params
+  const { maturityStage, weakestBlock, strongestBlock, blockScores, verdictDescription, recommendations, answers } = params
 
   const recRows = recommendations
     .map((rec, i) => `
@@ -293,8 +221,6 @@ function buildDiagnosticEmailHtml(params: SendDiagnosticEmailParams, calendlyUrl
       </tr>`
     })
     .join('')
-
-  const evBlock = evUplift && evUplift.scenarios.length > 0 ? buildEVBlock(evUplift as Parameters<typeof buildEVBlock>[0]) : ''
 
   const freeTextRows = [
     ['NRR Reporting — free text', answers.q1_text],
@@ -367,8 +293,6 @@ function buildDiagnosticEmailHtml(params: SendDiagnosticEmailParams, calendlyUrl
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
               ${recRows}
             </table>
-
-            ${evBlock}
 
             <!-- CTA -->
             <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">

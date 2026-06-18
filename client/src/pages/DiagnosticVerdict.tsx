@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAssessmentState } from '../lib/state'
 import {
@@ -11,11 +11,8 @@ import {
   type DiagnosticBlock,
   type MaturityStage,
 } from '../content/diagnosticTemplates'
-import { computeNRR } from '../lib/nrr'
-import { computeEVUplift } from '../lib/evUplift'
 import { track } from '../lib/analytics'
 import { sendDiagnostic } from '../lib/api'
-import type { EVEmailData } from '../lib/api'
 
 const CALENDLY_URL =
   (import.meta.env.VITE_CALENDLY_URL as string | undefined) ?? 'https://calendly.com/loremex/intro'
@@ -216,28 +213,10 @@ function DiagnosticVerdict() {
       ? getDiagnosticTemplate(scores.weakestBlock, answers.q5_priority.choice)
       : null
 
-  const buildEVEmailData = useCallback((): EVEmailData | null => {
-    if (!state.nrrInputs || state.nrrCalculatorSkipped) return null
-    const nrrResult = computeNRR(state.nrrInputs)
-    const evResult = computeEVUplift(state.nrrInputs.startingMRR, nrrResult.nrr)
-    if (!evResult) return null
-    const startingARR = (state.nrrInputs.startingMRR ?? 0) * 12
-    return {
-      scenarios: evResult.scenarios.map((s) => ({
-        label: s.label, ppDelta: s.ppDelta, ppCapped: s.ppCapped, evUplift: s.evUplift,
-      })),
-      topOfMarketMessage: evResult.topOfMarketMessage,
-      startingMRRFormatted: startingARR >= 1_000_000
-        ? `$${(startingARR / 1_000_000).toFixed(1)}M ARR`
-        : `$${Math.round(startingARR / 1_000)}K ARR`,
-    }
-  }, [state.nrrInputs, state.nrrCalculatorSkipped])
-
   useEffect(() => {
     if (!answers || !scores || !template || sentRef.current) return
     if (!answers.q5_priority.choice) return
     sentRef.current = true
-    const evUplift = buildEVEmailData()
     sendDiagnostic({
       sessionId: state.sessionId,
       contactId: state.contactId,
@@ -262,7 +241,6 @@ function DiagnosticVerdict() {
         q5_priority: answers.q5_priority.choice,
         q6_text: answers.q6_anything_else.freeText,
       },
-      evUplift,
     }).catch((err: unknown) => {
       console.error('[DiagnosticVerdict] sendDiagnostic failed:', err)
     })
@@ -292,7 +270,6 @@ function DiagnosticVerdict() {
 
   async function handleDownloadDiagnosticPDF() {
     const { generateDiagnosticPDF } = await import('../lib/pdfGenerator')
-    const evUplift = buildEVEmailData()
     const blob = generateDiagnosticPDF({
       email: state.email ?? '',
       generatedAt: new Date().toISOString(),
@@ -302,7 +279,6 @@ function DiagnosticVerdict() {
       blockScores: scores!.blockScores as Record<string, 1 | 2 | 3 | 4 | 5>,
       verdictDescription: template!.description,
       recommendations: template!.recommendations as [string, string, string],
-      evUplift,
       q1_text: answers!.q1_reporting.freeText ?? null,
       q2_text: answers!.q2_retention.freeText ?? null,
       q3_text: answers!.q3_expansion.freeText ?? null,

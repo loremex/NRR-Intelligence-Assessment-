@@ -5,8 +5,7 @@ import { getCapability, getLevelColor } from '../lib/rubric'
 import { getCapabilityOverall, getThreeWeakestLevers, DIMS, getActionDimAvg, getCrossCapDimAvg, getMeasurementOverall, getLeverAvg, type AllPicks } from '../lib/scoring'
 import { track } from '../lib/analytics'
 import { composeRecommendation } from '../lib/recommendations'
-import { computeNRR, formatCurrency } from '../lib/nrr'
-import { computeEVUplift, formatEVUplift } from '../lib/evUplift'
+import { computeNRR } from '../lib/nrr'
 import type { PDFParams, PDFCapabilityData, PDFCrossCapRow } from '../lib/pdfGenerator'
 import { completeSession, type ScorecardPayload } from '../lib/api'
 import { MeasurementHeatmap } from '../components/scorecard/MeasurementHeatmap'
@@ -190,10 +189,6 @@ function Scorecard() {
     ? computeNRR(state.nrrInputs)
     : null
 
-  const evResult = nrrResult
-    ? computeEVUplift(state.nrrInputs?.startingMRR ?? null, nrrResult.nrr)
-    : null
-
   const { sentences: recSentences, cta } = composeRecommendation(state.selectedCapabilities, picks)
 
   // Derived display values
@@ -224,8 +219,6 @@ function Scorecard() {
   if (matrixCapObj) {
     matrixCapObj.levers.forEach((l) => { leverDescById[l.id] = l.description })
   }
-
-  const evMax = evResult ? Math.max(...evResult.scenarios.map((s) => s.evUplift), 1) : 1
 
   // ── Animation effect ────────────────────────────────────────────────────────
 
@@ -275,10 +268,6 @@ function Scorecard() {
   // ── Build PDFParams ─────────────────────────────────────────────────────────
 
   const buildPDFParams = useCallback((): PDFParams => {
-    const localEVResult = nrrResult
-      ? computeEVUplift(state.nrrInputs?.startingMRR ?? null, nrrResult.nrr)
-      : null
-
     const capList: PDFCapabilityData[] = sections.map((capKey) => {
       const cap = getCapability(capKey)!
       const overall = getCapabilityOverall(capKey, picks)
@@ -351,15 +340,6 @@ function Scorecard() {
       reportingMaturity: hasMeasurement ? getMeasurementOverall(picks.measurement) : null,
       overallIntelligence,
       distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
-      evUplift: localEVResult ? {
-        scenarios: localEVResult.scenarios.map((s) => ({
-          label: s.label,
-          ppDelta: s.ppDelta,
-          ppCapped: s.ppCapped,
-          evUplift: s.evUplift,
-        })),
-        topOfMarketMessage: localEVResult.topOfMarketMessage,
-      } : null,
       capabilities: capList,
       crossCapDims,
       actionCapNames: actionCaps.map((k) => getCapability(k)?.name ?? k),
@@ -413,15 +393,6 @@ function Scorecard() {
       reportingMaturity: scorecardPayload.reportingMaturity,
       overallIntelligence,
       distanceToL5: scorecardPayload.distanceToL5,
-      evUplift: evResult ? {
-        scenarios: evResult.scenarios.map((s) => ({
-          label: s.label,
-          ppDelta: s.ppDelta,
-          ppCapped: s.ppCapped,
-          evUplift: s.evUplift,
-        })),
-        topOfMarketMessage: evResult.topOfMarketMessage,
-      } : null,
       capabilities: sections.map((capKey) => {
         const cap = getCapability(capKey)!
         const overall = getCapabilityOverall(capKey, picks)
@@ -497,16 +468,6 @@ function Scorecard() {
           completedAt,
           scorecard: scorecardPayload,
           pdfBase64,
-          evUplift: evResult ? {
-            scenarios: evResult.scenarios.map((s) => ({
-              label: s.label,
-              ppDelta: s.ppDelta,
-              ppCapped: s.ppCapped,
-              evUplift: s.evUplift,
-            })),
-            topOfMarketMessage: evResult.topOfMarketMessage,
-            startingMRRFormatted: formatCurrency(state.nrrInputs?.startingMRR ?? 0),
-          } : null,
         })
         console.log('[scorecard] completeSession succeeded')
       } catch (err) {
@@ -651,46 +612,6 @@ function Scorecard() {
             fontSize={30}
           />
         </div>
-
-        {/* EV Uplift */}
-        {evResult && (
-          <div data-reveal="ev" style={cardStyle}>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: '#3D6090', marginBottom: 6 }}>
-              Enterprise Value Impact
-            </div>
-            <p style={{ margin: '0 0 22px', fontSize: 14, color: '#6B7B89' }}>
-              Based on your starting MRR at the tiered NRR-to-EV multiple.
-            </p>
-            {evResult.topOfMarketMessage ? (
-              <p style={{ fontSize: 15, color: '#6B7B89', fontStyle: 'italic' }}>{evResult.topOfMarketMessage}</p>
-            ) : (
-              <div style={{ display: 'grid', gap: 14 }}>
-                {evResult.scenarios.map((s, i) => {
-                  const barPct = s.evUplift / evMax * 100 * e
-                  return (
-                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '230px 1fr 150px', alignItems: 'center', gap: 18 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
-                        <span style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{s.label}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#4E7C66', background: '#E6EFE9', padding: '3px 8px', borderRadius: 999 }}>
-                          +{s.ppDelta}pp{s.ppCapped ? '+' : ''}
-                        </span>
-                      </div>
-                      <div style={{ height: 10, borderRadius: 999, background: '#EEF1F4', position: 'relative', overflow: 'hidden' }}>
-                        <div style={{ position: 'absolute', left: 0, top: 0, height: 10, borderRadius: 999, width: `${barPct}%`, background: 'linear-gradient(90deg,#3D6090,#5B7A9E)' }} />
-                      </div>
-                      <span style={{ fontFamily: 'Georgia, serif', fontSize: 20, fontWeight: 700, color: '#243B52', textAlign: 'right' }}>
-                        {formatEVUplift(s.evUplift * e)}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            <p style={{ margin: '22px 0 0', fontSize: 12, fontStyle: 'italic', color: '#A6B0BB', lineHeight: 1.5 }}>
-              Indicative — based on public SaaS valuation benchmarks. Real EV varies by growth rate, margin, and market conditions.
-            </p>
-          </div>
-        )}
 
         {/* Capability overview rows (accordion) */}
         {sections.length > 0 && (
