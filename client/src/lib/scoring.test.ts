@@ -1,108 +1,43 @@
 import { describe, it, expect } from 'vitest'
 import {
-  getLeverAvg,
-  getActionDimAvg,
-  getActionCapabilityOverall,
   getMeasurementOverall,
   getCapabilityOverall,
   getOverallIntelligence,
   getDistanceToL5,
-  getCrossCapDimAvg,
-  getThreeWeakestLevers,
+  getV2CapabilityOverall,
+  getV2OverallMaturity,
+  getV2WeakestCells,
+  getV2CellScore,
   scoreToColor,
   type AllPicks,
 } from './scoring'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Build AllPicks for a single action cap with explicit [People, Process, Tech, Data] per lever */
-function makeActionPicks(
+function makeV2Picks(
   capKey: 'retention' | 'expansion' | 'pricing',
-  scores: Array<[number | null, number | null, number | null, number | null]>,
+  scenarioIndices: Partial<Record<'impact'|'whitespace'|'accountability'|'playbook'|'execution'|'governance', number | null>>,
 ): AllPicks {
-  const leverIds = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7']
-  const dims = ['People', 'Process', 'Technology', 'Data']
-  const capPicks: Record<string, Record<string, number | null>> = {}
-  leverIds.forEach((id, i) => {
-    capPicks[id] = {
-      People: scores[i]?.[0] ?? null,
-      Process: scores[i]?.[1] ?? null,
-      Technology: scores[i]?.[2] ?? null,
-      Data: scores[i]?.[3] ?? null,
-    }
-    void dims
-  })
-  return { measurement: {}, retention: {}, expansion: {}, pricing: {}, [capKey]: capPicks }
+  return { measurement: {}, retention: {}, expansion: {}, pricing: {}, [capKey]: scenarioIndices }
 }
 
-function makeAllL(level: number): AllPicks {
-  const dims = ['People', 'Process', 'Technology', 'Data']
-  const leverIds = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7']
+function makeAllScenario(scenarioIndex: number): AllPicks {
+  const cap: Record<string, number | null> = {}
+  for (const lever of ['impact', 'whitespace', 'accountability', 'playbook', 'execution', 'governance']) {
+    cap[lever] = scenarioIndex
+  }
   const mIds = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
-
-  const actionCap: Record<string, Record<string, number | null>> = {}
-  leverIds.forEach((id) => {
-    actionCap[id] = Object.fromEntries(dims.map((d) => [d, level]))
-  })
-
   const mPicks: Record<string, number | null> = {}
-  mIds.forEach((id) => { mPicks[id] = level })
-
+  mIds.forEach((id) => { mPicks[id] = scenarioIndex + 1 })
   return {
     measurement: mPicks,
-    retention: structuredClone(actionCap),
-    expansion: structuredClone(actionCap),
-    pricing: structuredClone(actionCap),
+    retention: { ...cap },
+    expansion: { ...cap },
+    pricing: { ...cap },
   }
 }
 
-// ─── Test 1: Retention reference case ─────────────────────────────────────────
-
-describe('Test 1 — Retention rollup', () => {
-  const scores: Array<[number, number, number, number]> = [
-    [3, 3, 2, 2], // L1
-    [3, 3, 2, 2], // L2
-    [3, 3, 3, 2], // L3
-    [3, 3, 2, 2], // L4
-    [4, 4, 3, 3], // L5
-    [3, 3, 3, 3], // L6
-    [3, 3, 3, 3], // L7
-  ]
-  const picks = makeActionPicks('retention', scores)
-  const capPicks = picks.retention
-
-  it('computes lever averages correctly', () => {
-    expect(getLeverAvg(capPicks['L1'])).toBeCloseTo(2.5, 4)
-    expect(getLeverAvg(capPicks['L2'])).toBeCloseTo(2.5, 4)
-    expect(getLeverAvg(capPicks['L3'])).toBeCloseTo(2.75, 4)
-    expect(getLeverAvg(capPicks['L4'])).toBeCloseTo(2.5, 4)
-    expect(getLeverAvg(capPicks['L5'])).toBeCloseTo(3.5, 4)
-    expect(getLeverAvg(capPicks['L6'])).toBeCloseTo(3.0, 4)
-    expect(getLeverAvg(capPicks['L7'])).toBeCloseTo(3.0, 4)
-  })
-
-  it('Capability Overall = 2.84', () => {
-    expect(getActionCapabilityOverall('retention', capPicks)).toBeCloseTo(2.84, 2)
-  })
-
-  it('Dim Avg People = 3.15', () => {
-    expect(getActionDimAvg('retention', 'People', capPicks)).toBeCloseTo(3.15, 2)
-  })
-
-  it('Dim Avg Process = 3.15', () => {
-    expect(getActionDimAvg('retention', 'Process', capPicks)).toBeCloseTo(3.15, 2)
-  })
-
-  it('Dim Avg Technology = 2.58', () => {
-    expect(getActionDimAvg('retention', 'Technology', capPicks)).toBeCloseTo(2.58, 2)
-  })
-
-  it('Dim Avg Data = 2.48', () => {
-    expect(getActionDimAvg('retention', 'Data', capPicks)).toBeCloseTo(2.48, 2)
-  })
-})
-
-// ─── Test 2: Measurement reference case ───────────────────────────────────────
+// ─── Test 2: Measurement reference case (UNCHANGED) ───────────────────────────
 
 describe('Test 2 — Measurement rollup', () => {
   it('Capability Overall = 2.02', () => {
@@ -111,52 +46,35 @@ describe('Test 2 — Measurement rollup', () => {
   })
 })
 
-// ─── Test 3: All L5 ───────────────────────────────────────────────────────────
+// ─── Test 3: All scenario 4 (L5) ──────────────────────────────────────────────
 
-describe('Test 3 — All L5', () => {
-  const picks = makeAllL(5)
+describe('Test 3 — All L5 (scenario index 4)', () => {
+  const picks = makeAllScenario(4)
 
-  it('Retention Overall = 5.0', () => {
-    expect(getActionCapabilityOverall('retention', picks.retention)).toBeCloseTo(5.0, 4)
+  it('Retention capability overall = 5.0', () => {
+    expect(getV2CapabilityOverall('retention', picks)).toBeCloseTo(5.0, 4)
   })
 
-  it('Measurement Overall = 5.0', () => {
-    expect(getMeasurementOverall(picks.measurement)).toBeCloseTo(5.0, 4)
-  })
-
-  it('Overall Intelligence = 5.0', () => {
-    expect(getOverallIntelligence(['retention', 'expansion', 'pricing'], picks)).toBeCloseTo(5.0, 4)
+  it('Overall intelligence = 5.0', () => {
+    expect(getV2OverallMaturity(['retention', 'expansion', 'pricing'], picks)).toBeCloseTo(5.0, 4)
   })
 
   it('Distance to L5 = 0', () => {
     expect(getDistanceToL5(5.0)).toBeCloseTo(0, 4)
   })
-
-  it('All dim avgs = 5.0', () => {
-    expect(getActionDimAvg('retention', 'People', picks.retention)).toBeCloseTo(5.0, 4)
-    expect(getActionDimAvg('retention', 'Data', picks.retention)).toBeCloseTo(5.0, 4)
-  })
-
-  it('Cross-cap dim avg = 5.0', () => {
-    expect(getCrossCapDimAvg(['retention', 'expansion'], 'People', picks)).toBeCloseTo(5.0, 4)
-  })
 })
 
-// ─── Test 4: All L1 ───────────────────────────────────────────────────────────
+// ─── Test 4: All scenario 0 (L1) ──────────────────────────────────────────────
 
-describe('Test 4 — All L1', () => {
-  const picks = makeAllL(1)
+describe('Test 4 — All L1 (scenario index 0)', () => {
+  const picks = makeAllScenario(0)
 
-  it('Retention Overall = 1.0', () => {
-    expect(getActionCapabilityOverall('retention', picks.retention)).toBeCloseTo(1.0, 4)
+  it('Retention capability overall = 1.0', () => {
+    expect(getV2CapabilityOverall('retention', picks)).toBeCloseTo(1.0, 4)
   })
 
-  it('Measurement Overall = 1.0', () => {
-    expect(getMeasurementOverall(picks.measurement)).toBeCloseTo(1.0, 4)
-  })
-
-  it('Overall Intelligence = 1.0', () => {
-    expect(getOverallIntelligence(['retention', 'expansion', 'pricing'], picks)).toBeCloseTo(1.0, 4)
+  it('Overall intelligence = 1.0', () => {
+    expect(getV2OverallMaturity(['retention', 'expansion', 'pricing'], picks)).toBeCloseTo(1.0, 4)
   })
 
   it('Distance to L5 = 4', () => {
@@ -164,15 +82,30 @@ describe('Test 4 — All L1', () => {
   })
 })
 
+// ─── V2 reference case ────────────────────────────────────────────────────────
+
+describe('V2 reference case — mixed scores', () => {
+  it('capability score = mean of 6 lever scores', () => {
+    const picks = makeV2Picks('retention', {
+      impact: 2,        // L3
+      whitespace: 1,    // L2
+      accountability: 3, // L4
+      playbook: 2,      // L3
+      execution: 3,     // L4
+      governance: 2,    // L3
+    })
+    // cell scores: 3, 2, 4, 3, 4, 3 → mean = 19/6 ≈ 3.1667
+    expect(getV2CapabilityOverall('retention', picks)).toBeCloseTo(19 / 6, 3)
+  })
+})
+
 // ─── Edge cases ───────────────────────────────────────────────────────────────
 
 describe('Edge cases', () => {
   it('returns null for blank action cap picks', () => {
-    const picks: AllPicks = {
-      measurement: {}, retention: {}, expansion: {}, pricing: {},
-    }
-    expect(getActionCapabilityOverall('retention', picks.retention)).toBeNull()
-    expect(getLeverAvg({})).toBeNull()
+    const picks: AllPicks = { measurement: {}, retention: {}, expansion: {}, pricing: {} }
+    expect(getV2CapabilityOverall('retention', picks)).toBeNull()
+    expect(getV2CellScore('retention', 'impact', picks)).toBeNull()
   })
 
   it('returns null for blank measurement picks', () => {
@@ -180,23 +113,8 @@ describe('Edge cases', () => {
   })
 
   it('0 action caps → Overall Intelligence null', () => {
-    const picks = makeAllL(3)
-    expect(getOverallIntelligence([], picks)).toBeNull()
-  })
-
-  it('1 action cap → Overall Intelligence = that cap only', () => {
-    const picks = makeActionPicks('retention', [
-      [3, 3, 2, 2], [3, 3, 2, 2], [3, 3, 3, 2], [3, 3, 2, 2],
-      [4, 4, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3],
-    ])
-    const capOverall = getActionCapabilityOverall('retention', picks.retention)
-    const oi = getOverallIntelligence(['retention'], picks)
-    expect(oi).toBeCloseTo(capOverall!, 4)
-  })
-
-  it('getCrossCapDimAvg returns null for <2 caps', () => {
-    const picks = makeAllL(3)
-    expect(getCrossCapDimAvg(['retention'], 'People', picks)).toBeNull()
+    const picks = makeAllScenario(3)
+    expect(getV2OverallMaturity([], picks)).toBeNull()
   })
 
   it('getCapabilityOverall dispatches to measurement for measurement key', () => {
@@ -204,8 +122,18 @@ describe('Edge cases', () => {
     expect(getCapabilityOverall('measurement', picks)).toBeCloseTo(2.02, 2)
   })
 
-  it('getLeverAvg skips null dims', () => {
-    expect(getLeverAvg({ People: 4, Process: null, Technology: 2, Data: null })).toBeCloseTo(3.0, 4)
+  it('getV2WeakestCells returns sorted ascending by score', () => {
+    const picks: AllPicks = {
+      measurement: {},
+      retention: { impact: 4, whitespace: 0, accountability: 2, playbook: 1, execution: 3, governance: 2 },
+      expansion: {},
+      pricing: {},
+    }
+    const cells = getV2WeakestCells(['retention'], picks)
+    expect(cells.length).toBeGreaterThan(0)
+    for (let i = 1; i < cells.length; i++) {
+      expect(cells[i - 1].score).toBeLessThanOrEqual(cells[i].score)
+    }
   })
 
   it('scoreToColor maps score ranges correctly', () => {
@@ -217,19 +145,8 @@ describe('Edge cases', () => {
     expect(scoreToColor(4.5)).toBe('#6EE7B7')
   })
 
-  it('getThreeWeakestLevers returns sorted ascending', () => {
-    const picks = makeActionPicks('retention', [
-      [5, 5, 5, 5], // L1 avg 5
-      [1, 1, 1, 1], // L2 avg 1
-      [2, 2, 2, 2], // L3 avg 2
-      [3, 3, 3, 3], // L4 avg 3
-      [4, 4, 4, 4], // L5 avg 4
-      [1, 1, 1, 1], // L6 avg 1 (tie with L2 → L2 first since it was encountered first)
-      [2, 2, 2, 2], // L7 avg 2
-    ])
-    const weakest = getThreeWeakestLevers('retention', picks)
-    expect(weakest).toHaveLength(3)
-    expect(weakest[0].score).toBeLessThanOrEqual(weakest[1].score!)
-    expect(weakest[1].score).toBeLessThanOrEqual(weakest[2].score!)
+  it('getOverallIntelligence returns null for 0 action caps', () => {
+    const picks = makeAllScenario(3)
+    expect(getOverallIntelligence([], picks)).toBeNull()
   })
 })

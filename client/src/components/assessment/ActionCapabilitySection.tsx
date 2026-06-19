@@ -1,238 +1,170 @@
 import { useState } from 'react'
 import { useAssessmentState, type ActionCapKey } from '../../lib/state'
-import { getCapability, getLevelColor, getRubric } from '../../lib/rubric'
+import { V2_ASSESSMENT_CONTENT } from '../../content/assessmentContent'
 import { track } from '../../lib/analytics'
-import { ConfirmModal } from '../shared/ConfirmModal'
-import type { ActionCapability } from '../../lib/rubric-schema'
 
 interface ActionCapabilitySectionProps {
   capabilityKey: ActionCapKey
+  questionOffset: number
+  totalQuestions: number
   onComplete: () => void
+  onBackToPrevSection: () => void
 }
 
-const DIMS = ['People', 'Process', 'Technology', 'Data'] as const
-type DimKey = (typeof DIMS)[number]
-
-const ChevronDown = () => (
-  <svg aria-hidden="true" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-  </svg>
-)
-
-const CheckIcon = () => (
-  <svg aria-hidden="true" className="h-3.5 w-3.5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-  </svg>
-)
-
-export function ActionCapabilitySection({ capabilityKey, onComplete }: ActionCapabilitySectionProps) {
+export function ActionCapabilitySection({
+  capabilityKey,
+  questionOffset,
+  totalQuestions,
+  onComplete,
+  onBackToPrevSection,
+}: ActionCapabilitySectionProps) {
   const [state, dispatch] = useAssessmentState()
-  const [showModal, setShowModal] = useState(false)
+  const [currentQ, setCurrentQ] = useState(0)
   const [startTime] = useState(() => Date.now())
 
-  const cap = getCapability(capabilityKey) as ActionCapability
-  const levers = cap.levers
-  const themes = getRubric().themes
+  const capContent = V2_ASSESSMENT_CONTENT.find((c) => c.key === capabilityKey)!
   const capPicks = state.picks[capabilityKey]
+  const leverContent = capContent.levers[currentQ]!
+  const currentPick = capPicks[leverContent.lever] ?? null
 
-  // Count total answered (lever × dim) pairs
-  const pickedCount = levers.reduce((sum, lever) => {
-    return sum + DIMS.filter((dim) => capPicks[lever.id]?.[dim] != null).length
-  }, 0)
-  const totalCount = levers.length * DIMS.length // 7 × 4 = 28
-  const allComplete = pickedCount === totalCount
-  const isSkip = pickedCount === 0
+  const globalQ = questionOffset + currentQ + 1
 
-  const buttonLabel = isSkip
-    ? 'Skip section'
-    : allComplete
-      ? 'Continue'
-      : `Continue (${pickedCount} of ${totalCount} answered)`
+  function handleSelect(scenarioIndex: number) {
+    dispatch({
+      type: 'SET_PICK_SCENARIO',
+      capKey: capabilityKey,
+      lever: leverContent.lever,
+      scenarioIndex,
+    })
+    track({
+      name: 'pick_made',
+      props: {
+        lever_or_category_id: `${capabilityKey}/${leverContent.lever}`,
+        dimension: null,
+        level: scenarioIndex + 1,
+      },
+    })
+  }
 
-  function handleContinue() {
-    if (allComplete) {
-      advance()
+  function handleBack() {
+    if (currentQ === 0) {
+      onBackToPrevSection()
     } else {
-      setShowModal(true)
+      setCurrentQ(currentQ - 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
-  function advance() {
-    const secs = Math.round((Date.now() - startTime) / 1000)
-    track({
-      name: 'assessment_section_completed',
-      props: {
-        section_name: capabilityKey,
-        time_on_section_seconds: secs,
-        picks_count: pickedCount,
-      },
-    })
-    onComplete()
+  function handleNext() {
+    if (currentPick === null) return
+    if (currentQ === 5) {
+      const secs = Math.round((Date.now() - startTime) / 1000)
+      track({
+        name: 'assessment_section_completed',
+        props: {
+          section_name: capabilityKey,
+          time_on_section_seconds: secs,
+          picks_count: 6,
+        },
+      })
+      onComplete()
+    } else {
+      setCurrentQ(currentQ + 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
   }
 
   return (
-    <>
+    <div className="max-w-2xl mx-auto">
+      {/* Progress */}
       <div className="mb-6">
-        <p className="text-brand-blue text-xs font-semibold uppercase tracking-widest mb-2">
-          {capabilityKey.charAt(0).toUpperCase() + capabilityKey.slice(1)}
-        </p>
-        <h2 className="font-display text-2xl font-bold text-navy mb-2">{cap.name}</h2>
-        <p className="text-text-dark text-sm leading-relaxed max-w-2xl">{cap.tagline}</p>
-      </div>
-
-      {/* Dimension legend */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        {DIMS.map((dim) => (
-          <span key={dim} className="text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-            {dim}
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-brand-blue text-xs font-semibold uppercase tracking-widest">
+            {capContent.name}
+          </p>
+          <span className="text-xs text-slate-500 font-medium">
+            Question {globalQ} of {totalQuestions}
           </span>
-        ))}
-        <span className="text-xs text-slate-400 self-center">
-          Rate each dimension for every lever below
-        </span>
+        </div>
+        <div className="w-full bg-slate-200 rounded-full h-1.5">
+          <div
+            className="bg-brand-blue h-1.5 rounded-full transition-all duration-300"
+            style={{ width: `${(globalQ / totalQuestions) * 100}%` }}
+          />
+        </div>
       </div>
 
-      <div className="space-y-5 mb-8">
-        {levers.map((lever) => {
-          const leverPicks = capPicks[lever.id] ?? {}
-          const answeredDims = DIMS.filter((dim) => leverPicks[dim] != null).length
-          const theme = themes[lever.theme]
+      {/* Question */}
+      <div className="mb-8">
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">
+          {leverContent.title}
+        </p>
+        <h2 className="font-display text-2xl font-bold text-navy leading-snug">
+          {leverContent.question}
+        </h2>
+      </div>
 
-          // Use the highest answered level for the card accent (or first answered)
-          const answeredLevels = DIMS.map((dim) => leverPicks[dim]).filter((v): v is number => v != null)
-          const avgLevel = answeredLevels.length > 0
-            ? Math.round(answeredLevels.reduce((a, b) => a + b, 0) / answeredLevels.length)
-            : null
-          const accentColor = avgLevel != null ? getLevelColor(avgLevel).fill : '#E2E8F0'
-
+      {/* Scenarios */}
+      <div className="space-y-3 mb-8">
+        {leverContent.scenarios.map((scenario, idx) => {
+          const isSelected = currentPick === idx
           return (
-            <div
-              key={lever.id}
-              className="bg-white rounded-xl border border-slate-200 p-5"
-              style={{ borderLeft: `4px solid ${accentColor}` }}
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleSelect(idx)}
+              className={[
+                'w-full text-left rounded-xl border-2 p-4 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-2',
+                isSelected
+                  ? 'border-brand-blue bg-blue-50 shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
+              ].join(' ')}
             >
-              {/* Lever header */}
-              <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    {lever.id}
-                  </span>
-                  {theme && (
-                    <span
-                      className="text-xs font-medium px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: theme.color, color: '#374151' }}
-                    >
-                      {theme.label}
-                    </span>
+              <div className="flex items-start gap-3">
+                <div
+                  className={[
+                    'mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors',
+                    isSelected ? 'border-brand-blue bg-brand-blue' : 'border-slate-300',
+                  ].join(' ')}
+                >
+                  {isSelected && (
+                    <div className="w-2 h-2 rounded-full bg-white" />
                   )}
-                  <h3 className="font-display text-base font-bold text-navy">{lever.name}</h3>
                 </div>
-                {answeredDims > 0 && (
-                  <span className="text-xs text-slate-500 shrink-0">
-                    {answeredDims}/{DIMS.length} dims
-                  </span>
-                )}
+                <p className="text-sm text-text-dark leading-relaxed">{scenario.text}</p>
               </div>
-
-              <p className="text-sm text-text-dark leading-relaxed mb-4">{lever.question}</p>
-
-              {/* 2×2 dimension grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {DIMS.map((dim) => {
-                  const dimLevel = leverPicks[dim] ?? null
-                  const isAnswered = dimLevel != null
-                  const dimAnswers = (lever.dimensions[dim as DimKey] ?? []) as Array<{ level: number; text: string }>
-
-                  return (
-                    <div key={dim}>
-                      <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 mb-1.5">
-                        {isAnswered && <CheckIcon />}
-                        <span>{dim}</span>
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={dimLevel != null ? String(dimLevel) : ''}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            const newLevel = val === '' ? null : parseInt(val, 10)
-                            dispatch({
-                              type: 'SET_PICK_ACTION',
-                              capKey: capabilityKey,
-                              leverId: lever.id,
-                              dim,
-                              level: newLevel,
-                            })
-                            if (newLevel !== null) {
-                              track({
-                                name: 'pick_made',
-                                props: {
-                                  lever_or_category_id: lever.id,
-                                  dimension: dim,
-                                  level: newLevel,
-                                },
-                              })
-                            }
-                          }}
-                          aria-label={`${lever.name} — ${dim}`}
-                          className="w-full appearance-none bg-white border border-slate-300 rounded-lg pl-3 pr-8 py-2 text-sm text-text-dark focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent cursor-pointer"
-                        >
-                          <option value="">Select…</option>
-                          {dimAnswers.map((a) => (
-                            <option key={a.level} value={String(a.level)}>
-                              L{a.level} — {a.text}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
-                          <ChevronDown />
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+            </button>
           )
         })}
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200 pt-6">
-        <p className="text-sm text-slate-500">
-          {pickedCount === 0 ? (
-            'No answers yet — fill any dimension to begin'
-          ) : (
-            <>
-              <span className="font-semibold text-navy">{pickedCount}</span> of {totalCount} answered
-            </>
-          )}
-        </p>
+      {/* Navigation */}
+      <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-6">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-text-dark focus:outline-none focus:ring-2 focus:ring-brand-blue rounded transition-colors"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
 
         <button
           type="button"
-          onClick={handleContinue}
-          className="w-full sm:w-auto bg-navy text-white font-semibold px-8 py-3 rounded-lg transition-all hover:bg-slate-800 active:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-navy focus:ring-offset-2"
+          onClick={handleNext}
+          disabled={currentPick === null}
+          className={[
+            'bg-navy text-white font-semibold px-8 py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-navy focus:ring-offset-2',
+            currentPick === null
+              ? 'opacity-40 cursor-not-allowed'
+              : 'hover:bg-slate-800 active:bg-slate-900',
+          ].join(' ')}
         >
-          {buttonLabel} →
+          {currentQ === 5 ? 'Complete section' : 'Next'} →
         </button>
       </div>
-
-      <ConfirmModal
-        open={showModal}
-        title={isSkip ? 'Skip this section?' : 'Continue with partial answers?'}
-        body={
-          isSkip
-            ? `You haven't answered anything in ${cap.name}. Skipping means this capability won't appear in your scorecard.`
-            : `You've answered ${pickedCount} of ${totalCount} items in ${cap.name}. Your scorecard will note the unanswered ones.`
-        }
-        primaryLabel={isSkip ? 'Skip section' : 'Continue anyway'}
-        secondaryLabel="Go back"
-        onPrimary={() => {
-          setShowModal(false)
-          advance()
-        }}
-        onSecondary={() => setShowModal(false)}
-        onClose={() => setShowModal(false)}
-      />
-    </>
+    </div>
   )
 }

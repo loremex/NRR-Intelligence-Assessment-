@@ -17,11 +17,10 @@ declare module 'jspdf' {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface PDFLeverRow {
-  id: string
-  name: string
-  dimScores: Record<string, number | null>
-  leverAvg: number | null
+export interface PDFV2LeverScore {
+  lever: string
+  title: string
+  score: number | null
   gapToL5: number | null
 }
 
@@ -37,15 +36,9 @@ export interface PDFCapabilityData {
   name: string
   type: 'measurement' | 'action'
   overall: number | null
-  leverRows?: PDFLeverRow[]
+  v2LeverScores?: PDFV2LeverScore[]
   measurementRows?: PDFMeasurementRow[]
   weakestLevers: Array<{ name: string; score: number | null }>
-}
-
-export interface PDFCrossCapRow {
-  dim: string
-  capScores: Record<string, number | null>
-  avg: number | null
 }
 
 export interface PDFParams {
@@ -59,7 +52,6 @@ export interface PDFParams {
   overallIntelligence: number | null
   distanceToL5: number | null
   capabilities: PDFCapabilityData[]
-  crossCapDims: PDFCrossCapRow[]
   actionCapNames: string[]
   recommendationSentences: string[]
   ctaText: string
@@ -79,7 +71,6 @@ export interface PDFParams {
 const NAVY: [number, number, number] = [0, 35, 55]
 const GRAY: [number, number, number] = [100, 116, 139]
 const DARK: [number, number, number] = [30, 41, 59]
-const DIMS = ['People', 'Process', 'Technology', 'Data']
 
 // Navy ramp for heat-map cells
 const N800: [number, number, number] = [15, 37, 69]    // #0F2545
@@ -227,10 +218,6 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     ? (INTELLIGENCE_STAGE[Math.round(Math.max(1, Math.min(5, params.overallIntelligence)))] ?? 'Accountable')
     : null
 
-  const weakestDim = params.crossCapDims.length > 0
-    ? params.crossCapDims.reduce((a, b) => ((a.avg ?? 99) < (b.avg ?? 99) ? a : b)).dim
-    : null
-
   const weakestActionCap = params.capabilities
     .filter((c) => c.type === 'action')
     .reduce<PDFCapabilityData | null>((min, c) => {
@@ -238,7 +225,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
       return (c.overall ?? 99) < (min.overall ?? 99) ? c : min
     }, null)
 
-  const structuralConstraint = weakestDim ?? (weakestActionCap?.name ?? null)
+  const structuralConstraint = weakestActionCap?.name ?? null
 
   const headlineText = `Your NRR Intelligence is at ${stage ?? 'Accountable'} (${params.overallIntelligence?.toFixed(2) ?? '—'}/5). Your structural constraint is ${structuralConstraint ?? 'your lowest-scoring capability'}.`
   doc.setFontSize(10)
@@ -370,60 +357,6 @@ export function generateScorecardPDF(params: PDFParams): Blob {
 
   y = 16
 
-  // Section A: Cross-Capability Dimension View
-  if (params.crossCapDims.length > 0 && params.actionCapNames.length >= 2) {
-    y = sectionHeader(doc, 'CROSS-CAPABILITY DIMENSION VIEW', y)
-
-    const capKeys = params.capabilities
-      .filter((c) => params.actionCapNames.includes(c.name))
-      .map((c) => c.key)
-
-    const crossHead = ['Dimension', ...params.actionCapNames, 'Dim Avg', 'Gap to L5']
-    const crossBody = params.crossCapDims.map((row) => [
-      { content: row.dim },
-      ...capKeys.map((k) => {
-        const s = row.capScores[k] ?? null
-        return {
-          content: s !== null ? s.toFixed(2) : '—',
-          styles: {
-            fillColor: navyCell(s),
-            textColor: navyCellText(s),
-            halign: 'center' as const,
-            fontStyle: 'bold' as const,
-          },
-        }
-      }),
-      {
-        content: row.avg !== null ? row.avg.toFixed(2) : '—',
-        styles: {
-          fillColor: navyCell(row.avg),
-          textColor: navyCellText(row.avg),
-          halign: 'center' as const,
-          fontStyle: 'bold' as const,
-        },
-      },
-      {
-        content: row.avg !== null ? (5 - row.avg).toFixed(2) : '—',
-        styles: {
-          fillColor: gapCell(row.avg !== null ? 5 - row.avg : null),
-          textColor: gapCellText(row.avg !== null ? 5 - row.avg : null),
-          halign: 'center' as const,
-        },
-      },
-    ])
-
-    autoTable(doc, {
-      startY: y,
-      head: [crossHead],
-      body: crossBody,
-      theme: 'grid',
-      headStyles: { fillColor: N800, textColor: [255, 255, 255] as [number, number, number], fontSize: 7.5, fontStyle: 'bold' },
-      bodyStyles: { fontSize: 8, textColor: DARK },
-      margin: { left: 14, right: 14 },
-    })
-    y = doc.lastAutoTable.finalY + 8
-  }
-
   // Section B: Capability Detail (consolidated)
   y = sectionHeader(doc, 'CAPABILITY DETAIL', y)
 
@@ -438,8 +371,8 @@ export function generateScorecardPDF(params: PDFParams): Blob {
       // Group header row
       actionBody.push([
         {
-          content: cap.name,
-          colSpan: 7,
+          content: `${cap.name}  (${cap.overall !== null ? cap.overall.toFixed(2) : '—'} / 5)`,
+          colSpan: 3,
           styles: {
             fillColor: N800,
             textColor: [255, 255, 255] as [number, number, number],
@@ -449,33 +382,21 @@ export function generateScorecardPDF(params: PDFParams): Blob {
         },
       ])
 
-      if (cap.leverRows) {
-        for (const r of cap.leverRows) {
+      if (cap.v2LeverScores) {
+        for (const r of cap.v2LeverScores) {
           actionBody.push([
-            r.name,
-            ...DIMS.map((d) => {
-              const s = r.dimScores[d] ?? null
-              return {
-                content: s !== null ? s.toFixed(2) : '',
-                styles: {
-                  fillColor: navyCell(s),
-                  textColor: navyCellText(s),
-                  halign: 'center' as const,
-                  fontStyle: 'bold' as const,
-                },
-              }
-            }),
+            r.title,
             {
-              content: r.leverAvg !== null ? r.leverAvg.toFixed(2) : '—',
+              content: r.score !== null ? r.score.toFixed(0) : '—',
               styles: {
-                fillColor: navyCell(r.leverAvg),
-                textColor: navyCellText(r.leverAvg),
+                fillColor: navyCell(r.score),
+                textColor: navyCellText(r.score),
                 halign: 'center' as const,
                 fontStyle: 'bold' as const,
               },
             },
             {
-              content: r.gapToL5 !== null ? r.gapToL5.toFixed(2) : '—',
+              content: r.gapToL5 !== null ? `+${r.gapToL5.toFixed(0)} to L5` : '—',
               styles: {
                 fillColor: gapCell(r.gapToL5),
                 textColor: gapCellText(r.gapToL5),
@@ -489,12 +410,12 @@ export function generateScorecardPDF(params: PDFParams): Blob {
 
     autoTable(doc, {
       startY: y,
-      head: [['Lever', 'People', 'Process', 'Tech', 'Data', 'Avg', 'Gap']],
+      head: [['Lever', 'Score', 'Gap']],
       body: actionBody,
       theme: 'grid',
       headStyles: { fillColor: N600, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold', fontSize: 7 },
       bodyStyles: { fontSize: 7, textColor: DARK },
-      columnStyles: { 0: { cellWidth: 50 } },
+      columnStyles: { 0: { cellWidth: 80 } },
       margin: { left: 14, right: 14 },
     })
     y = doc.lastAutoTable.finalY + 6
@@ -541,25 +462,25 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   // Section C: Top 3 Highest-Impact Levers Across All Capabilities
   y = sectionHeader(doc, 'TOP 3 HIGHEST-IMPACT LEVERS', y)
 
-  // Collect all lever rows from all action caps, annotated with cap name
-  const allLevers: Array<{ name: string; capName: string; leverAvg: number | null; gap: number | null }> = []
+  // Collect all v2 lever scores from all action caps, annotated with cap name
+  const allLevers: Array<{ title: string; capName: string; score: number | null; gap: number | null }> = []
   for (const cap of actionCaps) {
-    if (cap.leverRows) {
-      for (const lr of cap.leverRows) {
+    if (cap.v2LeverScores) {
+      for (const lr of cap.v2LeverScores) {
         allLevers.push({
-          name: lr.name,
+          title: lr.title,
           capName: cap.name,
-          leverAvg: lr.leverAvg,
+          score: lr.score,
           gap: lr.gapToL5,
         })
       }
     }
   }
 
-  // Sort by leverAvg ascending (nulls last), take top 3
+  // Sort by score ascending (nulls last), take top 3
   const sortedLevers = allLevers
-    .filter((l) => l.leverAvg !== null)
-    .sort((a, b) => (a.leverAvg ?? 99) - (b.leverAvg ?? 99))
+    .filter((l) => l.score !== null)
+    .sort((a, b) => (a.score ?? 99) - (b.score ?? 99))
     .slice(0, 3)
 
   doc.setFontSize(8)
@@ -567,7 +488,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   doc.setFont('helvetica', 'normal')
   for (let i = 0; i < sortedLevers.length; i++) {
     const lv = sortedLevers[i]
-    const line = `${i + 1}.  ${lv.name} (${lv.capName}) — score ${lv.leverAvg?.toFixed(2) ?? '—'}, gap ${lv.gap?.toFixed(2) ?? '—'} to L5`
+    const line = `${i + 1}.  ${lv.title} (${lv.capName}) — score ${lv.score?.toFixed(0) ?? '—'}, gap ${lv.gap?.toFixed(0) ?? '—'} to L5`
     doc.text(line, 14, y)
     y += 5
   }
@@ -583,14 +504,8 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   y = sectionHeader(doc, 'YOUR PRIORITISED RECOMMENDATION', y)
 
   // Para 1 — Structural constraint
-  const weakestDimRow = params.crossCapDims.length > 0
-    ? params.crossCapDims.reduce((a, b) => ((a.avg ?? 99) < (b.avg ?? 99) ? a : b))
-    : null
-
   let para1: string
-  if (weakestDimRow) {
-    para1 = `Your ${weakestDimRow.dim} dimension is weak across your selected action capabilities (cross-cap average ${weakestDimRow.avg?.toFixed(2) ?? '—'}/5). This is the structural constraint to address first — investing here lifts all capabilities simultaneously rather than fixing one at a time.`
-  } else if (weakestActionCap) {
+  if (weakestActionCap) {
     para1 = `Your ${weakestActionCap.name} is the lowest-scoring capability (${weakestActionCap.overall?.toFixed(2) ?? '—'}/5). Address this first to establish the foundation for NRR improvement.`
   } else {
     para1 = 'Focus on addressing your lowest-scoring capability to establish the foundation for NRR improvement.'
@@ -605,15 +520,15 @@ export function generateScorecardPDF(params: PDFParams): Blob {
 
   // Para 2 — Weakest cap + top 3 levers
   if (weakestActionCap) {
-    const weakestCapLevers = weakestActionCap.leverRows
-      ? [...weakestActionCap.leverRows]
-          .filter((l) => l.leverAvg !== null)
-          .sort((a, b) => (a.leverAvg ?? 99) - (b.leverAvg ?? 99))
+    const weakestCapLevers = weakestActionCap.v2LeverScores
+      ? [...weakestActionCap.v2LeverScores]
+          .filter((l) => l.score !== null)
+          .sort((a, b) => (a.score ?? 99) - (b.score ?? 99))
           .slice(0, 3)
       : []
 
     if (weakestCapLevers.length > 0) {
-      const leverNames = weakestCapLevers.map((l) => `${l.name} (${l.leverAvg?.toFixed(2) ?? '—'})`)
+      const leverNames = weakestCapLevers.map((l) => `${l.title} (${l.score?.toFixed(0) ?? '—'})`)
       let leverList: string
       if (leverNames.length === 1) {
         leverList = leverNames[0]
@@ -630,8 +545,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   }
 
   // Para 3 — Loremex POV
-  const weakestDimName = weakestDimRow?.dim ?? 'assessed dimensions'
-  const para3 = `Loremex helps PE-backed SaaS leaders move from L3 to L5 across these capabilities. Our methodology focuses on the structural lever first — addressing ${weakestDimName} as the multiplier that unlocks every capability score above it.`
+  const para3 = `Loremex helps PE-backed SaaS leaders move from L3 to L5 across these capabilities. Our methodology focuses on the structural lever first — addressing your weakest capability as the multiplier that unlocks every capability score above it.`
   const para3Lines = doc.splitTextToSize(para3, pageWidth - 28) as string[]
   doc.text(para3Lines, 14, y)
   y += para3Lines.length * 5 + 8

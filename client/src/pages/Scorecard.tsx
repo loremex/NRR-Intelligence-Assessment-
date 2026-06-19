@@ -1,19 +1,20 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAssessmentState, type ActionCapKey, type CapKey } from '../lib/state'
-import { getCapability, getLevelColor } from '../lib/rubric'
-import { getCapabilityOverall, getThreeWeakestLevers, DIMS, getActionDimAvg, getCrossCapDimAvg, getMeasurementOverall, getLeverAvg, type AllPicks } from '../lib/scoring'
+import { getCapability } from '../lib/rubric'
+import { getCapabilityOverall, getThreeWeakestLevers, getMeasurementOverall, getV2CellScore, getV2WeakestCells, getV2MaturityStage, V2_LEVERS, type AllPicks } from '../lib/scoring'
 import { track } from '../lib/analytics'
 import { composeRecommendation } from '../lib/recommendations'
 import { computeNRR } from '../lib/nrr'
-import type { PDFParams, PDFCapabilityData, PDFCrossCapRow } from '../lib/pdfGenerator'
+import type { PDFParams, PDFCapabilityData } from '../lib/pdfGenerator'
 import { completeSession, type ScorecardPayload } from '../lib/api'
 import { MeasurementHeatmap } from '../components/scorecard/MeasurementHeatmap'
 import { RecommendationBlock } from '../components/scorecard/RecommendationBlock'
-import type { MeasurementCapability, ActionCapability } from '../lib/rubric-schema'
+import { CapabilityMatrix } from '../components/scorecard/CapabilityMatrix'
+import { V2_ASSESSMENT_CONTENT } from '../content/assessmentContent'
+import type { MeasurementCapability } from '../lib/rubric-schema'
 
 const CAP_ORDER: CapKey[] = ['measurement', 'retention', 'expansion', 'pricing']
-const MATRIX_COLS = '1.7fr .62fr .62fr .62fr .62fr .82fr .72fr'
 
 // ── Color helpers ──────────────────────────────────────────────────────────────
 
@@ -62,42 +63,7 @@ function KpiTile({ label, value, valueSuffix, subtitle, valueColor, fontSize = 3
   )
 }
 
-function GaugeSVG({ score, progress }: { score: number | null; progress: number }) {
-  const R = 26
-  const C = 2 * Math.PI * R
-  const frac = score !== null ? (score / 5) * progress : 0
-  const displayScore = score !== null ? (score * progress).toFixed(1) : '—'
-  return (
-    <div style={{ position: 'relative', width: 68, height: 68, flexShrink: 0 }}>
-      <svg width={68} height={68} viewBox="0 0 68 68">
-        <circle cx={34} cy={34} r={R} fill="none" stroke="#EAEEF3" strokeWidth={7} />
-        <circle
-          cx={34} cy={34} r={R}
-          fill="none" stroke="#3D6090" strokeWidth={7}
-          strokeLinecap="round"
-          strokeDasharray={`${C * frac} ${C}`}
-          transform="rotate(-90 34 34)"
-        />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontSize: 17, fontWeight: 700, color: '#0E2B41' }}>
-        {displayScore}
-      </div>
-    </div>
-  )
-}
 
-function HeatCell({ value, display }: { value: number | null; display?: string }) {
-  const text = display ?? (value === null ? '—' : String(value))
-  return (
-    <div
-      style={{ margin: 3, borderRadius: 6, background: cellBg(value), color: cellFg(value), fontSize: 14, fontWeight: 700, textAlign: 'center', padding: '11px 0', transition: 'transform .15s ease', cursor: 'default' }}
-      onMouseEnter={(ev) => { ev.currentTarget.style.transform = 'scale(1.08)' }}
-      onMouseLeave={(ev) => { ev.currentTarget.style.transform = 'none' }}
-    >
-      {text}
-    </div>
-  )
-}
 
 // ── Data helpers ───────────────────────────────────────────────────────────────
 
@@ -150,7 +116,6 @@ function Scorecard() {
   const [pdfDownloading, setPdfDownloading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [selLeverId, setSelLeverId] = useState<string | null>(null)
-  const [hoverRowId, setHoverRowId] = useState<string | null>(null)
   const [expandedCapId, setExpandedCapId] = useState<CapKey | null>(null)
   const [hoverCapId, setHoverCapId] = useState<CapKey | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -181,7 +146,7 @@ function Scorecard() {
   })()
 
   const weakestLeverName = weakestCap
-    ? (getThreeWeakestLevers(weakestCap, picks)[0]?.name ?? null)
+    ? (getV2WeakestCells([weakestCap], picks)[0]?.lever ?? null)
     : null
 
   const nrrResult = state.nrrInputs && !state.nrrCalculatorSkipped
@@ -195,17 +160,13 @@ function Scorecard() {
   const nrrPct = nrrResult?.nrr !== null && nrrResult?.nrr !== undefined ? nrrResult.nrr * 100 : null
   const grrPct = nrrResult?.grr !== null && nrrResult?.grr !== undefined ? nrrResult.grr * 100 : null
 
-  // Current matrix cap (controlled if user picked a tab, else default to weakest)
+  // Lever title lookup: "${capKey}/${lever}" → title string
   const allLeverDescById: Record<string, string> = {}
-  actionCaps.forEach((k) => {
-    const c = getCapability(k) as ActionCapability | null
-    c?.levers.forEach((l) => { allLeverDescById[l.id] = l.description })
+  V2_ASSESSMENT_CONTENT.filter((c) => actionCaps.includes(c.key as ActionCapKey)).forEach((cap) => {
+    cap.levers.forEach((l) => { allLeverDescById[`${cap.key}/${l.lever}`] = l.title })
   })
 
-  const pooledTop3 = actionCaps
-    .flatMap((k) => getThreeWeakestLevers(k, picks).filter((l) => l.score !== null))
-    .sort((a, b) => (a.score ?? 5) - (b.score ?? 5))
-    .slice(0, 3)
+  const pooledTop3 = getV2WeakestCells(actionCaps, picks).slice(0, 3)
 
   // ── Animation effect ────────────────────────────────────────────────────────
 
@@ -258,13 +219,13 @@ function Scorecard() {
     const capList: PDFCapabilityData[] = sections.map((capKey) => {
       const cap = getCapability(capKey)!
       const overall = getCapabilityOverall(capKey, picks)
-      const weakest = getThreeWeakestLevers(capKey, picks)
-        .filter((l) => l.score !== null)
-        .slice(0, 3)
-        .map((l) => ({ name: l.name, score: l.score }))
 
       if (cap.type === 'measurement') {
         const mCap = cap as MeasurementCapability
+        const weakest = getThreeWeakestLevers(capKey, picks)
+          .filter((l) => l.score !== null)
+          .slice(0, 3)
+          .map((l) => ({ name: l.name, score: l.score }))
         return {
           key: capKey,
           name: cap.name,
@@ -278,44 +239,26 @@ function Scorecard() {
         }
       }
 
-      const aCap = cap as ActionCapability
-      const capPicks = picks[capKey as ActionCapKey]
+      const capContent = V2_ASSESSMENT_CONTENT.find((c) => c.key === capKey)
       return {
         key: capKey,
         name: cap.name,
         type: 'action',
         overall,
-        leverRows: aCap.levers.map((l) => {
-          const dimPicks = capPicks[l.id] ?? {}
-          const avg = getLeverAvg(dimPicks)
+        v2LeverScores: V2_LEVERS.map((lever) => {
+          const score = getV2CellScore(capKey as ActionCapKey, lever, picks)
           return {
-            id: l.id,
-            name: l.name,
-            dimScores: {
-              People: dimPicks['People'] ?? null,
-              Process: dimPicks['Process'] ?? null,
-              Technology: dimPicks['Technology'] ?? null,
-              Data: dimPicks['Data'] ?? null,
-            },
-            leverAvg: avg,
-            gapToL5: avg !== null ? 5 - avg : null,
+            lever,
+            title: capContent?.levers.find((l) => l.lever === lever)?.title ?? lever,
+            score,
+            gapToL5: score !== null ? 5 - score : null,
           }
         }),
-        weakestLevers: weakest,
+        weakestLevers: getV2WeakestCells([capKey as ActionCapKey], picks)
+          .slice(0, 3)
+          .map((c) => ({ name: c.lever, score: c.score })),
       }
     })
-
-    const crossCapDims: PDFCrossCapRow[] =
-      actionCaps.length >= 2
-        ? DIMS.map((dim) => {
-            const avg = getCrossCapDimAvg(actionCaps, dim, picks)
-            const capScores: Record<string, number | null> = {}
-            actionCaps.forEach((k) => {
-              capScores[k] = getActionDimAvg(k, dim, picks[k])
-            })
-            return { dim, capScores, avg }
-          })
-        : []
 
     return {
       email: state.email ?? '',
@@ -328,7 +271,6 @@ function Scorecard() {
       overallIntelligence,
       distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
       capabilities: capList,
-      crossCapDims,
       actionCapNames: actionCaps.map((k) => getCapability(k)?.name ?? k),
       recommendationSentences: recSentences,
       ctaText: cta.text,
@@ -383,13 +325,13 @@ function Scorecard() {
       capabilities: sections.map((capKey) => {
         const cap = getCapability(capKey)!
         const overall = getCapabilityOverall(capKey, picks)
-        const weakest = getThreeWeakestLevers(capKey, picks)
-          .filter((l) => l.score !== null)
-          .slice(0, 3)
-          .map((l) => ({ name: l.name, score: l.score }))
 
         if (cap.type === 'measurement') {
           const mCap = cap as MeasurementCapability
+          const weakest = getThreeWeakestLevers(capKey, picks)
+            .filter((l) => l.score !== null)
+            .slice(0, 3)
+            .map((l) => ({ name: l.name, score: l.score }))
           return {
             key: capKey,
             name: cap.name,
@@ -402,40 +344,26 @@ function Scorecard() {
             weakestLevers: weakest,
           }
         }
-        const aCap = cap as ActionCapability
-        const capPicks = picks[capKey as ActionCapKey]
+        const capContent = V2_ASSESSMENT_CONTENT.find((c) => c.key === capKey)
         return {
           key: capKey,
           name: cap.name,
           type: 'action' as const,
           overall,
-          leverRows: aCap.levers.map((l) => {
-            const dimPicks = capPicks[l.id] ?? {}
-            const avg = getLeverAvg(dimPicks)
+          v2LeverScores: V2_LEVERS.map((lever) => {
+            const score = getV2CellScore(capKey as ActionCapKey, lever, picks)
             return {
-              id: l.id,
-              name: l.name,
-              dimScores: {
-                People: dimPicks['People'] ?? null,
-                Process: dimPicks['Process'] ?? null,
-                Technology: dimPicks['Technology'] ?? null,
-                Data: dimPicks['Data'] ?? null,
-              },
-              leverAvg: avg,
-              gapToL5: avg !== null ? 5 - avg : null,
+              lever,
+              title: capContent?.levers.find((l) => l.lever === lever)?.title ?? lever,
+              score,
+              gapToL5: score !== null ? 5 - score : null,
             }
           }),
-          weakestLevers: weakest,
+          weakestLevers: getV2WeakestCells([capKey as ActionCapKey], picks)
+            .slice(0, 3)
+            .map((c) => ({ name: c.lever, score: c.score })),
         }
       }),
-      crossCapDims: actionCaps.length >= 2
-        ? DIMS.map((dim) => {
-            const avg = getCrossCapDimAvg(actionCaps, dim, picks)
-            const capScores: Record<string, number | null> = {}
-            actionCaps.forEach((k) => { capScores[k] = getActionDimAvg(k, dim, picks[k]) })
-            return { dim, capScores, avg }
-          })
-        : [],
       actionCapNames: actionCaps.map((k) => getCapability(k)?.name ?? k),
       recommendationSentences: recSentences,
       ctaText: cta.text,
@@ -570,7 +498,7 @@ function Scorecard() {
             label="Overall Intelligence"
             value={overallIntelligence !== null ? `${(overallIntelligence * e).toFixed(2)}` : '—'}
             valueSuffix={overallIntelligence !== null ? '/5' : undefined}
-            subtitle={overallIntelligence !== null ? getLevelColor(Math.round(overallIntelligence)).label : 'No action capabilities'}
+            subtitle={overallIntelligence !== null ? getV2MaturityStage(overallIntelligence) : 'No action capabilities'}
             valueColor={overallIntelligence !== null ? '#3D6090' : '#C2CAD3'}
           />
           <KpiTile
@@ -675,98 +603,28 @@ function Scorecard() {
           </div>
         )}
 
-        {/* Capability matrices — one per selected action cap */}
-        {actionCaps.map((capKey) => {
-          const cap = getCapability(capKey) as ActionCapability | null
-          const capOverall = getCapabilityOverall(capKey, picks)
-          const capPicks = picks[capKey]
-          const capLevers = cap ? cap.levers.map((l) => {
-            const dimPicks = capPicks[l.id] ?? {}
-            const avg = getLeverAvg(dimPicks)
-            return { id: l.id, name: l.name, description: l.description, cells: DIMS.map((d) => dimPicks[d] ?? null), avg, gap: avg !== null ? 5 - avg : null }
-          }) : []
-          return (
-            <div key={capKey} data-reveal="matrix" style={{ ...cardStyle, marginTop: 24 }}>
-              {/* Gauge + cap name + legend */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 6, flexWrap: 'wrap' as const }}>
-                <GaugeSVG score={capOverall} progress={e} />
-                <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const }}>
-                    <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 26, fontWeight: 700, color: '#0E2B41', margin: 0 }}>
-                      {cap?.name}
-                    </h2>
-                    {capOverall !== null && (
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#3D6090', background: '#EAEFF5', padding: '5px 12px', borderRadius: 999, whiteSpace: 'nowrap' as const }}>
-                        {capOverall.toFixed(2)} / 5
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ margin: '5px 0 0', fontSize: 14, color: '#6B7B89' }}>{cap?.tagline}</p>
-                </div>
-                {/* Legend */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9AA7B3' }}>Low</span>
-                  <div style={{ display: 'flex', gap: 3 }}>
-                    {[1, 2, 3, 4, 5].map((v) => (
-                      <div key={v} style={{ width: 16, height: 10, borderRadius: 2, background: cellBg(v) }} />
-                    ))}
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9AA7B3' }}>Strong</span>
-                </div>
-              </div>
-
-              {/* Heatmap */}
-              <div style={{ marginTop: 20, overflowX: 'auto' }}>
-                {/* Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: MATRIX_COLS, alignItems: 'center', padding: '0 0 10px', borderBottom: '1px solid #EEF1F4', minWidth: 640 }}>
-                  {['Lever', 'People', 'Process', 'Technology', 'Data', 'Lever Avg', 'Gap to L5'].map((h, i) => (
-                    <div key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: '#9AA7B3', textAlign: i === 0 ? 'left' : 'center', padding: '0 4px' }}>
-                      {h}
-                    </div>
-                  ))}
-                </div>
-                {/* Rows */}
-                <div style={{ display: 'grid', gap: 2, marginTop: 6, minWidth: 640 }}>
-                  {capLevers.map((lv, i) => {
-                    const isSel = selLeverId === lv.id
-                    const isHov = hoverRowId === lv.id
-                    return (
-                      <div
-                        key={lv.id}
-                        onMouseEnter={() => setHoverRowId(lv.id)}
-                        onMouseLeave={() => setHoverRowId(null)}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: MATRIX_COLS,
-                          alignItems: 'center',
-                          borderRadius: 8,
-                          background: isSel ? 'rgba(61,96,144,.08)' : (isHov ? '#F6F8FB' : 'transparent'),
-                          boxShadow: isSel ? 'inset 3px 0 0 #3D6090' : 'none',
-                          transition: 'background .2s',
-                        }}
-                      >
-                        <div style={{ padding: '8px 6px 8px 10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: '#AEB8C2', flexShrink: 0 }}>L{i + 1}</span>
-                            <span style={{ fontSize: 13.5, fontWeight: 600, color: '#243B52', lineHeight: 1.25 }}>{lv.description}</span>
-                          </div>
-                          <div style={{ fontSize: 11, color: '#AEB8C2', marginLeft: 24, marginTop: 1 }}>{lv.name}</div>
-                        </div>
-                        {lv.cells.map((c, j) => (
-                          <HeatCell key={j} value={c} />
-                        ))}
-                        <HeatCell value={lv.avg} display={lv.avg !== null ? lv.avg.toFixed(2) : '—'} />
-                        <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: '#6B7B89' }}>
-                          {lv.gap !== null ? `+${lv.gap.toFixed(2)}` : '—'}
-                        </div>
-                      </div>
-                    )
+        {/* Capability matrix — all selected action caps */}
+        {actionCaps.length > 0 && (
+          <div data-reveal="matrix" style={{ ...cardStyle, marginTop: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#0E2B41', margin: 0 }}>
+                Capability Matrix
+              </h2>
+              {/* Legend */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#9AA7B3' }}>Low</span>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {[1, 2, 3, 4, 5].map((v) => {
+                    const ramp: Record<number, string> = { 1: '#EAEEF3', 2: '#D2DBE4', 3: '#AABBCC', 4: '#6E8AA6', 5: '#3E5C7C' }
+                    return <div key={v} style={{ width: 16, height: 10, borderRadius: 2, background: ramp[v] }} />
                   })}
                 </div>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#9AA7B3' }}>Strong</span>
               </div>
             </div>
-          )
-        })}
+            <CapabilityMatrix picks={picks} selectedCaps={actionCaps} />
+          </div>
+        )}
 
         {/* Top 3 levers — pooled across ALL selected action caps */}
         {pooledTop3.length > 0 && (
@@ -776,14 +634,16 @@ function Scorecard() {
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
               {pooledTop3.map((lv, k) => {
-                const isSel = selLeverId === lv.id
+                const cellKey = `${lv.capKey}/${lv.lever}`
+                const isSel = selLeverId === cellKey
+                const capName = getCapability(lv.capKey)?.name ?? lv.capKey
                 return (
                   <div
-                    key={lv.id}
+                    key={cellKey}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setSelLeverId(isSel ? null : lv.id)}
-                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setSelLeverId(isSel ? null : lv.id) }}
+                    onClick={() => setSelLeverId(isSel ? null : cellKey)}
+                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setSelLeverId(isSel ? null : cellKey) }}
                     onMouseEnter={(ev) => { ev.currentTarget.style.transform = 'translateY(-3px)' }}
                     onMouseLeave={(ev) => { ev.currentTarget.style.transform = 'none' }}
                     style={{
@@ -803,14 +663,14 @@ function Scorecard() {
                   >
                     <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#C2CAD3' }}>{k + 1}</div>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{allLeverDescById[lv.id] ?? lv.name}</div>
-                      <div style={{ fontSize: 12, color: '#AEB8C2', marginTop: 2 }}>{lv.name}</div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{allLeverDescById[cellKey] ?? lv.lever}</div>
+                      <div style={{ fontSize: 12, color: '#AEB8C2', marginTop: 2 }}>{capName}</div>
                     </div>
                     <span style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, color: cellFg(lv.score), background: cellBg(lv.score), padding: '5px 14px', borderRadius: 8 }}>
-                      {lv.score !== null ? lv.score.toFixed(2) : '—'}
+                      {lv.score}
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7B89', whiteSpace: 'nowrap' }}>
-                      {lv.gapToL5 !== null ? `+${lv.gapToL5.toFixed(2)} to L5` : '—'}
+                      +{lv.gapToL5} to L5
                     </span>
                   </div>
                 )

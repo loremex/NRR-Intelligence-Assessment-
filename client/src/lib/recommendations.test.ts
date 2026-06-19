@@ -5,37 +5,29 @@ import type { CapKey } from './state'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeAllL(level: number): AllPicks {
-  const dims = ['People', 'Process', 'Technology', 'Data']
-  const leverIds = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7']
+function makeAllScenario(scenarioIndex: number): AllPicks {
+  const cap: Record<string, number | null> = {}
+  for (const lever of ['impact', 'whitespace', 'accountability', 'playbook', 'execution', 'governance']) {
+    cap[lever] = scenarioIndex
+  }
   const mIds = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
-
-  const actionCap: Record<string, Record<string, number | null>> = {}
-  leverIds.forEach((id) => {
-    actionCap[id] = Object.fromEntries(dims.map((d) => [d, level]))
-  })
-
   const mPicks: Record<string, number | null> = {}
-  mIds.forEach((id) => { mPicks[id] = level })
-
+  mIds.forEach((id) => { mPicks[id] = scenarioIndex + 1 })
   return {
     measurement: mPicks,
-    retention: structuredClone(actionCap),
-    expansion: structuredClone(actionCap),
-    pricing: structuredClone(actionCap),
+    retention: { ...cap },
+    expansion: { ...cap },
+    pricing: { ...cap },
   }
 }
 
-function makeCapPicks(level: number): Record<string, Record<string, number | null>> {
-  const dims = ['People', 'Process', 'Technology', 'Data']
-  const leverIds = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7']
-  const cap: Record<string, Record<string, number | null>> = {}
-  leverIds.forEach((id) => {
-    cap[id] = Object.fromEntries(dims.map((d) => [d, level]))
-  })
+function makeCapPicks(scenarioIndex: number): Record<string, number | null> {
+  const cap: Record<string, number | null> = {}
+  for (const lever of ['impact', 'whitespace', 'accountability', 'playbook', 'execution', 'governance']) {
+    cap[lever] = scenarioIndex
+  }
   return cap
 }
-
 
 function noUnfilledTokens(sentences: string[]): boolean {
   const combined = sentences.join(' ')
@@ -46,7 +38,7 @@ function noUnfilledTokens(sentences: string[]): boolean {
 
 describe('Pattern A — weakest cap (always fires for ≥1 action cap)', () => {
   it('fires with 1 action cap (retention only)', () => {
-    const picks = makeAllL(3)
+    const picks = makeAllScenario(2)
     const caps: CapKey[] = ['retention']
     const result = composeRecommendation(caps, picks)
     const combined = result.sentences.join(' ')
@@ -57,9 +49,9 @@ describe('Pattern A — weakest cap (always fires for ≥1 action cap)', () => {
   it('fires with 3 action caps — identifies weakest', () => {
     const picks: AllPicks = {
       measurement: {},
-      retention: makeCapPicks(4),
-      expansion: makeCapPicks(2),
-      pricing: makeCapPicks(3),
+      retention: makeCapPicks(3),   // score 4
+      expansion: makeCapPicks(1),   // score 2 (weakest)
+      pricing: makeCapPicks(2),     // score 3
     }
     const caps: CapKey[] = ['retention', 'expansion', 'pricing']
     const result = composeRecommendation(caps, picks)
@@ -68,58 +60,18 @@ describe('Pattern A — weakest cap (always fires for ≥1 action cap)', () => {
   })
 
   it('always contributes 2 sentences', () => {
-    const picks = makeAllL(3)
+    const picks = makeAllScenario(2)
     const caps: CapKey[] = ['retention']
     const result = composeRecommendation(caps, picks)
-    // Pattern A = 2 sentences, others not firing at level 3, so exactly 2
+    // Pattern A = 2 sentences, others not firing at scenario 2, so exactly 2
     expect(result.sentences.length).toBe(2)
   })
 
   it('returns CTA', () => {
-    const picks = makeAllL(3)
+    const picks = makeAllScenario(2)
     const result = composeRecommendation(['retention'], picks)
     expect(result.cta.url).toContain('calendly')
     expect(result.cta.text).toBeTruthy()
-  })
-})
-
-// ─── Pattern B ────────────────────────────────────────────────────────────────
-
-describe('Pattern B — cross-cap dim weakness', () => {
-  it('fires when a dim is weak (<2.5) across caps', () => {
-    const picks: AllPicks = {
-      measurement: {},
-      retention: {
-        L1: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L2: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L3: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L4: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L5: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L6: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L7: { People: 4, Process: 4, Technology: 1, Data: 1 },
-      },
-      expansion: {
-        L1: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L2: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L3: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L4: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L5: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L6: { People: 4, Process: 4, Technology: 1, Data: 1 },
-        L7: { People: 4, Process: 4, Technology: 1, Data: 1 },
-      },
-      pricing: {},
-    }
-    const caps: CapKey[] = ['retention', 'expansion']
-    const result = composeRecommendation(caps, picks)
-    const combined = result.sentences.join(' ')
-    expect(combined).toMatch(/Technology|Data/)
-    expect(combined).toContain('structural constraint')
-  })
-
-  it('does NOT fire with only 1 action cap', () => {
-    const picks = makeAllL(1)
-    const result = composeRecommendation(['retention'], picks)
-    expect(result.sentences.join(' ')).not.toContain('structural constraint')
   })
 })
 
@@ -129,7 +81,7 @@ describe('Pattern C — measurement gap', () => {
   it('fires when measurement selected and overall < 3.0', () => {
     const picks: AllPicks = {
       measurement: { M1: 2, M2: 2, M3: 2, M4: 1, M5: 2, M6: 1, M7: 1 },
-      retention: makeCapPicks(3),
+      retention: makeCapPicks(2),
       expansion: {},
       pricing: {},
     }
@@ -140,14 +92,14 @@ describe('Pattern C — measurement gap', () => {
   })
 
   it('does NOT fire when measurement overall >= 3.0', () => {
-    const picks = makeAllL(4)
+    const picks = makeAllScenario(3)
     const caps: CapKey[] = ['measurement', 'retention']
     const result = composeRecommendation(caps, picks)
     expect(result.sentences.join(' ')).not.toContain('reliable measurement')
   })
 
   it('does NOT fire when measurement not selected', () => {
-    const picks = makeAllL(1)
+    const picks = makeAllScenario(0)
     const caps: CapKey[] = ['retention']
     const result = composeRecommendation(caps, picks)
     expect(result.sentences.join(' ')).not.toContain('reliable measurement')
@@ -157,8 +109,8 @@ describe('Pattern C — measurement gap', () => {
 // ─── Pattern D ────────────────────────────────────────────────────────────────
 
 describe('Pattern D — strong baseline', () => {
-  it('fires when Overall Intelligence > 3.5', () => {
-    const picks = makeAllL(4)
+  it('fires when Overall Intelligence > 3.5 (scenario index 3 → score 4)', () => {
+    const picks = makeAllScenario(3)
     const caps: CapKey[] = ['retention']
     const result = composeRecommendation(caps, picks)
     const combined = result.sentences.join(' ')
@@ -166,43 +118,11 @@ describe('Pattern D — strong baseline', () => {
     expect(combined).toContain('L4–L5 transition')
   })
 
-  it('does NOT fire when Overall Intelligence <= 3.5', () => {
-    const picks = makeAllL(3)
+  it('does NOT fire when Overall Intelligence <= 3.5 (scenario index 2 → score 3)', () => {
+    const picks = makeAllScenario(2)
     const caps: CapKey[] = ['retention']
     const result = composeRecommendation(caps, picks)
     expect(result.sentences.join(' ')).not.toContain('L4–L5 transition')
-  })
-})
-
-// ─── Pattern E ────────────────────────────────────────────────────────────────
-
-describe('Pattern E — theme imbalance', () => {
-  it('fires when PROVE vs SELL gap > 0.7', () => {
-    // L1,L2 = PROVE; L3,L4,L5 = SELL; set PROVE high, SELL low
-    const proveSell: Record<string, Record<string, number | null>> = {
-      L1: { People: 5, Process: 5, Technology: 5, Data: 5 },
-      L2: { People: 5, Process: 5, Technology: 5, Data: 5 },
-      L3: { People: 1, Process: 1, Technology: 1, Data: 1 },
-      L4: { People: 1, Process: 1, Technology: 1, Data: 1 },
-      L5: { People: 1, Process: 1, Technology: 1, Data: 1 },
-      L6: { People: 3, Process: 3, Technology: 3, Data: 3 },
-      L7: { People: 3, Process: 3, Technology: 3, Data: 3 },
-    }
-    const picks: AllPicks = {
-      measurement: {},
-      retention: structuredClone(proveSell),
-      expansion: structuredClone(proveSell),
-      pricing: {},
-    }
-    const result = composeRecommendation(['retention', 'expansion'], picks)
-    const combined = result.sentences.join(' ')
-    expect(combined).toMatch(/PROVE|SELL/)
-  })
-
-  it('does NOT fire with only 1 action cap', () => {
-    const picks = makeAllL(3)
-    const result = composeRecommendation(['retention'], picks)
-    expect(result.sentences.join(' ')).not.toMatch(/PROVE levers/)
   })
 })
 
@@ -212,9 +132,9 @@ describe('Pattern F — pricing gap', () => {
   it('fires when pricing is lower than other caps by >0.5', () => {
     const picks: AllPicks = {
       measurement: {},
-      retention: makeCapPicks(4),
-      expansion: makeCapPicks(4),
-      pricing: makeCapPicks(2),
+      retention: makeCapPicks(3),   // score 4
+      expansion: makeCapPicks(3),   // score 4
+      pricing: makeCapPicks(0),     // score 1
     }
     const caps: CapKey[] = ['retention', 'expansion', 'pricing']
     const result = composeRecommendation(caps, picks)
@@ -224,13 +144,13 @@ describe('Pattern F — pricing gap', () => {
   })
 
   it('does NOT fire when pricing is not selected', () => {
-    const picks = makeAllL(2)
+    const picks = makeAllScenario(1)
     const result = composeRecommendation(['retention', 'expansion'], picks)
     expect(result.sentences.join(' ')).not.toContain('silent NRR killer')
   })
 
   it('does NOT fire when pricing score is not significantly lower', () => {
-    const picks = makeAllL(3)
+    const picks = makeAllScenario(2)
     const result = composeRecommendation(['retention', 'pricing'], picks)
     expect(result.sentences.join(' ')).not.toContain('silent NRR killer')
   })
@@ -240,28 +160,11 @@ describe('Pattern F — pricing gap', () => {
 
 describe('Sentence budget — max 3 pattern sentences', () => {
   it('never exceeds 3 sentences even when many patterns fire', () => {
-    // C fires: low measurement, B fires: cross-cap dim weak, A fires: always (2 sentences)
-    // That's already 4 sentences → A must be trimmed/dropped
+    // C fires (low measurement), A fires (always, 2 sentences) → total 3
     const picks: AllPicks = {
       measurement: { M1: 1, M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1 },
-      retention: {
-        L1: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L2: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L3: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L4: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L5: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L6: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L7: { People: 1, Process: 1, Technology: 5, Data: 5 },
-      },
-      expansion: {
-        L1: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L2: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L3: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L4: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L5: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L6: { People: 1, Process: 1, Technology: 5, Data: 5 },
-        L7: { People: 1, Process: 1, Technology: 5, Data: 5 },
-      },
+      retention: makeCapPicks(1),
+      expansion: makeCapPicks(1),
       pricing: {},
     }
     const result = composeRecommendation(['measurement', 'retention', 'expansion'], picks)
@@ -271,7 +174,7 @@ describe('Sentence budget — max 3 pattern sentences', () => {
   it('priority order: C beats A when budget is tight', () => {
     const picks: AllPicks = {
       measurement: { M1: 1, M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1 },
-      retention: makeCapPicks(3),
+      retention: makeCapPicks(2),
       expansion: {},
       pricing: {},
     }
@@ -311,7 +214,7 @@ describe('Measurement-only special case', () => {
   })
 
   it('empty selection returns empty sentences', () => {
-    const picks = makeAllL(3)
+    const picks = makeAllScenario(2)
     const result = composeRecommendation([], picks)
     expect(result.sentences).toHaveLength(0)
     expect(result.cta).toBeTruthy()
@@ -334,14 +237,14 @@ describe('No unfilled tokens in any combination', () => {
 
   for (const { caps, desc } of combos) {
     it(`no undefined/null/NaN tokens for: ${desc}`, () => {
-      const picks = makeAllL(2)
+      const picks = makeAllScenario(1)
       const result = composeRecommendation(caps, picks)
       expect(noUnfilledTokens(result.sentences)).toBe(true)
       expect(noUnfilledTokens([result.cta.text])).toBe(true)
     })
 
-    it(`no unfilled tokens at level 4 for: ${desc}`, () => {
-      const picks = makeAllL(4)
+    it(`no unfilled tokens at scenario 3 (score 4) for: ${desc}`, () => {
+      const picks = makeAllScenario(3)
       const result = composeRecommendation(caps, picks)
       expect(noUnfilledTokens(result.sentences)).toBe(true)
     })

@@ -99,7 +99,15 @@ function Assessment() {
         ) : (
           <ActionCapabilitySection
             capabilityKey={currentSection as ActionCapKey}
+            questionOffset={(() => {
+              const ACTION_CAP_ORDER: ActionCapKey[] = ['retention', 'expansion', 'pricing']
+              const selectedActionCaps = sections.filter((k): k is ActionCapKey => k !== 'measurement')
+              const idx = ACTION_CAP_ORDER.filter((k) => selectedActionCaps.includes(k)).indexOf(currentSection as ActionCapKey)
+              return Math.max(0, idx) * 6
+            })()}
+            totalQuestions={sections.filter((k) => k !== 'measurement').length * 6}
             onComplete={handleSectionComplete}
+            onBackToPrevSection={handleBack}
           />
         )}
       </main>

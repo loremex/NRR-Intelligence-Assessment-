@@ -11,7 +11,7 @@ interface WYGCap {
   name: string
   score: number
   blurb: string
-  dims: { People: number; Process: number; Technology: number; Data: number }
+  levers: { Impact: number; Whitespace: number; Accountability: number; Playbook: number; Execution: number; Governance: number }
 }
 
 const WYG_CAPS: WYGCap[] = [
@@ -19,25 +19,25 @@ const WYG_CAPS: WYGCap[] = [
     name: 'Revenue Retention',
     score: 3.2,
     blurb: 'You hold the base well, but saves are reactive rather than orchestrated.',
-    dims: { People: 3.4, Process: 3.0, Technology: 3.1, Data: 3.3 },
+    levers: { Impact: 3.4, Whitespace: 3.0, Accountability: 3.1, Playbook: 3.3, Execution: 3.2, Governance: 3.0 },
   },
   {
     name: 'Revenue Expansion',
     score: 2.8,
     blurb: "Upsell happens, but signals and plays aren't yet systematic.",
-    dims: { People: 2.9, Process: 2.6, Technology: 2.7, Data: 3.0 },
+    levers: { Impact: 2.9, Whitespace: 2.6, Accountability: 2.7, Playbook: 3.0, Execution: 2.8, Governance: 2.6 },
   },
   {
     name: 'Pricing Optimization',
     score: 2.4,
     blurb: 'Pricing is largely intuition-led with limited experimentation.',
-    dims: { People: 2.2, Process: 2.5, Technology: 2.3, Data: 2.6 },
+    levers: { Impact: 2.2, Whitespace: 2.5, Accountability: 2.3, Playbook: 2.6, Execution: 2.4, Governance: 2.2 },
   },
   {
     name: 'NRR Reporting',
     score: 3.8,
     blurb: 'Strong visibility — your reporting is closest to best-in-class.',
-    dims: { People: 3.6, Process: 3.7, Technology: 4.0, Data: 3.9 },
+    levers: { Impact: 3.6, Whitespace: 3.7, Accountability: 4.0, Playbook: 3.9, Execution: 3.8, Governance: 3.7 },
   },
 ]
 
@@ -46,7 +46,7 @@ const WYG_LEVELS = ['', 'Foundational', 'Developing', 'Accountable', 'Managed', 
 const WYG_FEATURES: { title: string; body: string; color: string; icon: 'gauge' | 'gap' | 'target' }[] = [
   {
     title: 'Intelligence score',
-    body: 'Rated L1–L5 across People, Process, Technology, and Data for each capability.',
+    body: 'Rated L1–L5 across 6 intelligence levers — Impact, Whitespace, Accountability, Playbook, Execution, and Governance.',
     color: '#1F3A5C',
     icon: 'gauge',
   },
@@ -157,7 +157,7 @@ function CapRow({
 }
 
 function DetailPanel({ cap, color, level }: { cap: WYGCap; color: string; level: number }) {
-  const dims = Object.entries(cap.dims) as [string, number][]
+  const dims = Object.entries(cap.levers) as [string, number][]
   return (
     <div
       style={{
@@ -271,7 +271,7 @@ function DetailPanel({ cap, color, level }: { cap: WYGCap; color: string; level:
             marginBottom: 14,
           }}
         >
-          L1–L5 across dimensions
+          L1–L5 across intelligence levers
         </div>
         <div style={{ display: 'grid', gap: 12 }}>
           {dims.map(([k, v]) => (

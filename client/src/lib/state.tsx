@@ -11,7 +11,7 @@ import {
 } from 'react'
 import type { NRRMode } from './nrr'
 
-const STORAGE_KEY = 'loremex_assessment_state_v6'
+const STORAGE_KEY = 'loremex_assessment_state_v7'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,7 +55,7 @@ export const DEFAULT_DIAGNOSTIC_ANSWERS: DiagnosticAnswers = {
 }
 
 export interface AssessmentState {
-  schemaVersion: 6
+  schemaVersion: 7
   sessionId: string | null
   contactId: string | null
   email: string | null
@@ -67,9 +67,9 @@ export interface AssessmentState {
   selectedCapabilities: CapKey[]
   picks: {
     measurement: Record<string, number | null>
-    retention: Record<string, Record<string, number | null>>
-    expansion: Record<string, Record<string, number | null>>
-    pricing: Record<string, Record<string, number | null>>
+    retention: Record<string, number | null>
+    expansion: Record<string, number | null>
+    pricing: Record<string, number | null>
   }
   completedSections: string[]
   completedAt: string | null
@@ -89,7 +89,7 @@ export type AssessmentAction =
   | { type: 'SET_PRE_SELECTED_CAPABILITIES'; capabilities: CapKey[] }
   | { type: 'SET_SELECTED_CAPABILITIES'; capabilities: CapKey[] }
   | { type: 'SET_PICK_MEASUREMENT'; id: string; level: number | null }
-  | { type: 'SET_PICK_ACTION'; capKey: ActionCapKey; leverId: string; dim: string; level: number | null }
+  | { type: 'SET_PICK_SCENARIO'; capKey: ActionCapKey; lever: string; scenarioIndex: number | null }
   | { type: 'COMPLETE_SECTION'; section: string }
   | { type: 'SET_COMPLETED_AT'; completedAt: string }
   | { type: 'RESET_ALL' }
@@ -97,7 +97,7 @@ export type AssessmentAction =
 // ─── Default state ────────────────────────────────────────────────────────────
 
 export const defaultState: AssessmentState = {
-  schemaVersion: 6,
+  schemaVersion: 7,
   sessionId: null,
   contactId: null,
   email: null,
@@ -218,17 +218,14 @@ export function assessmentReducer(state: AssessmentState, action: AssessmentActi
         },
       }
 
-    case 'SET_PICK_ACTION':
+    case 'SET_PICK_SCENARIO':
       return {
         ...state,
         picks: {
           ...state.picks,
           [action.capKey]: {
             ...state.picks[action.capKey],
-            [action.leverId]: {
-              ...state.picks[action.capKey][action.leverId],
-              [action.dim]: action.level,
-            },
+            [action.lever]: action.scenarioIndex,
           },
         },
       }
@@ -254,8 +251,8 @@ export function loadFromStorage(): AssessmentState {
     if (!raw) return defaultState
     const parsed = JSON.parse(raw) as Partial<AssessmentState>
     // Reject any stored state with a mismatched schema version
-    if (parsed.schemaVersion !== 6) return defaultState
-    return { ...defaultState, ...parsed, schemaVersion: 6 }
+    if (parsed.schemaVersion !== 7) return defaultState
+    return { ...defaultState, ...parsed, schemaVersion: 7 }
   } catch {
     return defaultState
   }
