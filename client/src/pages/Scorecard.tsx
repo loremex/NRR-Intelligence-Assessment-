@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAssessmentState, type CapKey } from '../lib/state'
 import {
@@ -13,7 +13,7 @@ import {
 import { track } from '../lib/analytics'
 import { composeRecommendation } from '../lib/recommendations'
 import { computeNRR, formatCurrency } from '../lib/nrr'
-import type { PDFParams, PDFCapabilityData } from '../lib/pdfGenerator'
+import type { PDFParams } from '../lib/pdfGenerator'
 import { completeSession, type ScorecardPayload } from '../lib/api'
 import { RecommendationBlock } from '../components/scorecard/RecommendationBlock'
 import { CapabilitySummary } from '../components/scorecard/CapabilitySummary'
@@ -87,7 +87,6 @@ function deriveScorecardScope(caps: CapKey[]): 'full' | 'partial' {
 function Scorecard() {
   const navigate = useNavigate()
   const [state, dispatch] = useAssessmentState()
-  const [pdfDownloading, setPdfDownloading] = useState(false)
   const [progress, setProgress] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -175,58 +174,6 @@ function Scorecard() {
       return () => cancelAnimationFrame(raf)
     }
   }, [])
-
-  // ── Build PDFParams ─────────────────────────────────────────────────────────
-
-  const buildPDFParams = useCallback((): PDFParams => {
-    const capList: PDFCapabilityData[] = sections.map((capKey) => {
-      const capContent = V3_ASSESSMENT_CONTENT.find((c) => c.key === capKey)!
-      const overall = getCapabilityScore(capKey, picks)
-      return {
-        key: capKey,
-        name: capContent.name,
-        score: overall,
-        stage: getMaturityStage(overall),
-        questions: capContent.questions.map((q) => {
-          const score = getCellScore(capKey, q.id, picks)
-          const scenarioIdx = picks[capKey][q.id]
-          const pickedText = scenarioIdx !== null && scenarioIdx !== undefined
-            ? (q.scenarios[scenarioIdx as number]?.text ?? null)
-            : null
-          return {
-            qId: q.id,
-            title: q.title,
-            score,
-            pickedText,
-            gapToL5: score !== null ? 5 - score : null,
-          }
-        }),
-      }
-    })
-
-    const expansionDollars = nrrResult !== null
-      ? (nrrResult.netMovementDollars ?? 0) + (nrrResult.leakDollars ?? 0)
-      : null
-
-    return {
-      email: state.email ?? '',
-      generatedAt: state.completedAt ?? new Date().toISOString(),
-      nrr: nrrResult?.nrr ?? null,
-      grr: nrrResult?.grr ?? null,
-      netMovementDollars: nrrResult?.netMovementDollars ?? null,
-      netMovementPct: nrrResult?.netMovementPct ?? null,
-      leakDollars: nrrResult?.leakDollars ?? null,
-      expansionDollars,
-      reportingMaturity: reportingScore,
-      overallIntelligence,
-      distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
-      capabilities: capList,
-      allCapabilityScores: allCapScores,
-      recommendationSentences: recSentences,
-      ctaText: cta.text,
-      ctaUrl: cta.url,
-    }
-  }, [state, picks, sections, reportingScore, overallIntelligence, nrrResult, recSentences, cta, allCapScores])
 
   // ── Completion trigger ──────────────────────────────────────────────────────
 
@@ -346,25 +293,6 @@ function Scorecard() {
     navigate('/')
   }
 
-  async function handleDownloadPDF() {
-    setPdfDownloading(true)
-    try {
-      const { generateScorecardPDF } = await import('../lib/pdfGenerator')
-      const params = buildPDFParams()
-      const blob = generateScorecardPDF(params)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      const dateStr = new Date().toISOString().split('T')[0]
-      const safeEmail = (state.email ?? 'unknown').replace(/[^a-z0-9]/gi, '_')
-      a.href = url
-      a.download = `NRR_Scorecard_${safeEmail}_${dateStr}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
-      track({ name: 'pdf_downloaded', props: {} })
-    } finally {
-      setPdfDownloading(false)
-    }
-  }
 
   // ── Animation easing ────────────────────────────────────────────────────────
 
@@ -507,8 +435,6 @@ function Scorecard() {
         <RecommendationBlock
           sentences={recSentences}
           cta={cta}
-          onDownloadPDF={handleDownloadPDF}
-          pdfDownloading={pdfDownloading}
           leakDollars={nrrResult?.leakDollars ?? null}
           capabilityScores={allCapScores}
         />

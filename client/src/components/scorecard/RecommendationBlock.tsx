@@ -10,8 +10,6 @@ const MATRIX_CAPS = [
 interface RecommendationBlockProps {
   sentences: string[]
   cta: { text: string; url: string }
-  onDownloadPDF: () => void
-  pdfDownloading: boolean
   leakDollars: number | null
   capabilityScores: Array<{ key: string; name: string; score: number | null }>
 }
@@ -19,8 +17,6 @@ interface RecommendationBlockProps {
 export function RecommendationBlock({
   sentences,
   cta,
-  onDownloadPDF,
-  pdfDownloading,
   leakDollars,
   capabilityScores,
 }: RecommendationBlockProps) {
@@ -238,27 +234,6 @@ export function RecommendationBlock({
                 >
                   Book a call →
                 </a>
-                <button
-                  type="button"
-                  onClick={onDownloadPDF}
-                  disabled={pdfDownloading}
-                  style={{
-                    background: 'rgba(255,255,255,.08)',
-                    color: 'rgba(255,255,255,.8)',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    padding: '12px 24px',
-                    borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,.15)',
-                    cursor: pdfDownloading ? 'not-allowed' : 'pointer',
-                    opacity: pdfDownloading ? 0.5 : 1,
-                    transition: 'opacity .2s, background .15s',
-                  }}
-                  onMouseEnter={(ev) => { if (!pdfDownloading) ev.currentTarget.style.background = 'rgba(255,255,255,.13)' }}
-                  onMouseLeave={(ev) => { ev.currentTarget.style.background = 'rgba(255,255,255,.08)' }}
-                >
-                  {pdfDownloading ? 'Generating…' : 'Download PDF report'}
-                </button>
               </div>
             </div>
           </div>
