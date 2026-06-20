@@ -234,6 +234,50 @@ export function RecommendationBlock({
                 >
                   Book a call →
                 </a>
+                <a
+                  href="https://www.linkedin.com/company/loremex/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    background: 'rgba(255,255,255,.08)',
+                    color: 'rgba(255,255,255,.8)',
+                    fontFamily: 'Georgia, serif',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    padding: '12px 24px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(255,255,255,.15)',
+                    textDecoration: 'none',
+                    transition: 'opacity .2s, background .15s',
+                  }}
+                  onMouseEnter={(ev) => { ev.currentTarget.style.background = 'rgba(255,255,255,.13)' }}
+                  onMouseLeave={(ev) => { ev.currentTarget.style.background = 'rgba(255,255,255,.08)' }}
+                >
+                  LinkedIn ↗
+                </a>
+                <a
+                  href="https://www.loremex.ai/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    background: 'rgba(255,255,255,.08)',
+                    color: 'rgba(255,255,255,.8)',
+                    fontFamily: 'Georgia, serif',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    padding: '12px 24px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(255,255,255,.15)',
+                    textDecoration: 'none',
+                    transition: 'opacity .2s, background .15s',
+                  }}
+                  onMouseEnter={(ev) => { ev.currentTarget.style.background = 'rgba(255,255,255,.13)' }}
+                  onMouseLeave={(ev) => { ev.currentTarget.style.background = 'rgba(255,255,255,.08)' }}
+                >
+                  loremex.ai ↗
+                </a>
               </div>
             </div>
           </div>
