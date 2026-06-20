@@ -190,7 +190,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       {
         id: 'q2',
         title: 'Price-to-impact correlation',
-        question: "Is what a customer pays tied to the impact they receive and kept aligned as that impact shifts — or is it tied to seats, cost-plus, or whatever the market will bear, and left until renewal?",
+        question: "As the value a customer gets changes over time, does their price keep pace — or does it stay fixed until the next renewal?",
         scenarios: [
           { text: "Price is set by seats, tiers, or market rates. It isn't connected to the impact a given customer actually gets, and it holds until the next renewal." },
           { text: "We'd like price to reflect value, but in practice it tracks packaging and negotiation — and we only revisit it when a deal comes up." },
