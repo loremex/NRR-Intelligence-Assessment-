@@ -78,7 +78,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
     estimatedMinutes: 3,
     intro: {
       foundation: "Customers stay when impact clearly outweighs price — and the gap keeps widening. Save plays and health scores just protect that truth after the fact.",
-      aiNative: "Whether impact still outweighs price used to be invisible — inferred from usage, reviewed at renewal. Now it's sensed continuously: impact, value-vs-price, and customer sentiment read per account as they move, so drift is caught and corrected before the customer feels it. Retention stops being a save motion and becomes a condition you hold automatically.",
+      aiNative: "Whether impact still outweighs price used to be a guess, reviewed at renewal. Now it's sensed continuously — impact, value-vs-price, and sentiment — so drift is corrected before the customer feels it.",
     },
     questions: [
       {
