@@ -41,10 +41,12 @@ export interface PDFParams {
   netMovementDollars: number | null
   netMovementPct: number | null
   leakDollars: number | null
+  expansionDollars: number | null
   reportingMaturity: number | null
   overallIntelligence: number | null
   distanceToL5: number | null
   capabilities: PDFCapabilityData[]
+  allCapabilityScores: Array<{ key: string; name: string; score: number | null }>
   recommendationSentences: string[]
   ctaText: string
   ctaUrl: string
@@ -192,8 +194,6 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     y = sectionHeader(doc, 'WHAT THIS IS COSTING YOU', y)
 
     const leak = params.leakDollars
-    const net = params.netMovementDollars ?? 0
-    const expD = net + leak
     const nrrPct = (params.nrr * 100).toFixed(1)
     const grrPct = (params.grr * 100).toFixed(1)
 
@@ -204,26 +204,25 @@ export function generateScorecardPDF(params: PDFParams): Blob {
       return `$${abs.toFixed(0)}`
     }
 
-    let leakVariant: 'net-positive' | 'net-negative' | 'minimal-leak'
-    if (params.grr >= 0.95) leakVariant = 'minimal-leak'
-    else if (params.nrr >= 1.0) leakVariant = 'net-positive'
-    else leakVariant = 'net-negative'
+    let leakVariant: 'V1' | 'V2' | 'V3'
+    if (params.nrr < 1.0) leakVariant = 'V1'
+    else if (params.grr < 0.9) leakVariant = 'V2'
+    else leakVariant = 'V3'
 
     const leakFmt = fmt(leak)
-    const expFmt = fmt(expD)
 
     const leakCopy: Record<typeof leakVariant, { headline: string; body: string }> = {
-      'net-positive': {
-        headline: `You retained net positive this quarter — but ${leakFmt} walked out the door.`,
-        body: `Expansion (${expFmt}) more than covered it, so NRR reads ${nrrPct}% — healthy on paper. But ${leakFmt} left the base this quarter through contraction and churn. That's the number the net hides.`,
-      },
-      'net-negative': {
+      'V1': {
         headline: `Your leak outran expansion this quarter — ${leakFmt} walked out the door.`,
-        body: `With NRR at ${nrrPct}%, contraction and churn are outpacing expansion. ${leakFmt} left the base — and net revenue shrank. [Final copy TBD]`,
+        body: `With NRR at ${nrrPct}%, contraction and churn are outpacing expansion. ${leakFmt} left the base — and net revenue shrank. This isn't a revenue problem. It's a measurement and response problem: the signals were there; the system to catch them wasn't.`,
       },
-      'minimal-leak': {
+      'V2': {
+        headline: `You retained net positive — but ${leakFmt} left the base before expansion filled the gap.`,
+        body: `NRR reads ${nrrPct}% because expansion covered the leak. But GRR is ${grrPct}% — below the 90% threshold that separates companies who are managing churn from those who are tolerating it. The expansion that rescued this quarter may not be there next quarter.`,
+      },
+      'V3': {
         headline: `You've largely closed the leak — ${leakFmt} left the base this quarter.`,
-        body: `With GRR at ${grrPct}%, contraction and churn are well-controlled. [Final copy TBD]`,
+        body: `With GRR at ${grrPct}%, you've built a retention foundation most companies don't have. The remaining ${leakFmt} is preventable — the question is whether you have the measurement and response capability to catch it before it compounds.`,
       },
     }
 
@@ -255,31 +254,6 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     doc.text('  (contraction + churn)', 14 + 28 + 12, y)
     y += 5
 
-    // Top 3 weakest cells
-    const allQs = params.capabilities.flatMap((cap) =>
-      cap.questions.map((q) => ({ capName: cap.name, title: q.title, score: q.score, gap: q.gapToL5 }))
-    )
-    const top3 = allQs.filter((q) => q.score !== null).sort((a, b) => (a.score ?? 99) - (b.score ?? 99)).slice(0, 3)
-
-    if (top3.length > 0) {
-      doc.setFontSize(7.5)
-      doc.setTextColor(...GRAY)
-      doc.setFont('helvetica', 'bold')
-      doc.text('WHERE YOUR LEAK IS CONCENTRATED', 14, y)
-      doc.setFont('helvetica', 'normal')
-      y += 4
-
-      for (const q of top3) {
-        const line = `• ${q.title} (${q.capName}) — L${q.score?.toFixed(0) ?? '—'}, +${q.gap?.toFixed(0) ?? '—'} to L5`
-        doc.setFontSize(8)
-        doc.setTextColor(...DARK)
-        const qLines = doc.splitTextToSize(line, pageWidth - 22) as string[]
-        doc.text(qLines, 18, y)
-        y += qLines.length * 4.5
-      }
-      y += 2
-    }
-
     thinRule(doc, y)
     y += 5
   }
@@ -290,9 +264,6 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   const tiles: Array<{ label: string; value: string }> = [
     { label: 'NRR', value: params.nrr !== null ? `${(params.nrr * 100).toFixed(1)}%` : '—' },
     { label: 'GRR', value: params.grr !== null ? `${(params.grr * 100).toFixed(1)}%` : '—' },
-    ...(params.reportingMaturity !== null
-      ? [{ label: 'Reporting\nMaturity', value: `${params.reportingMaturity.toFixed(2)}/5` }]
-      : []),
     { label: 'Overall\nIntelligence', value: params.overallIntelligence !== null ? `${params.overallIntelligence.toFixed(2)}/5` : '—' },
     { label: 'Distance\nto L5', value: params.distanceToL5 !== null ? params.distanceToL5.toFixed(2) : '—' },
   ]
@@ -440,7 +411,58 @@ export function generateScorecardPDF(params: PDFParams): Blob {
 
   y = 16
 
-  // Section A: Prioritised Recommendation
+  // Section A: Maturity Matrix (stacked above recommendation — PDF can't do equal-height two columns cleanly)
+  y = sectionHeader(doc, 'MATURITY MATRIX', y)
+
+  const MATRIX_CAP_ORDER = [
+    { key: 'reporting', shortName: 'NRR Reporting' },
+    { key: 'retention', shortName: 'Retention' },
+    { key: 'expansion', shortName: 'Expansion' },
+    { key: 'pricing', shortName: 'Pricing Opt.' },
+  ]
+
+  const matrixBody = MATRIX_CAP_ORDER.map(({ key, shortName }) => {
+    const capScore = params.allCapabilityScores.find((c) => c.key === key)
+    const level = capScore?.score != null
+      ? Math.max(1, Math.min(5, Math.round(capScore.score)))
+      : null
+
+    return [
+      shortName,
+      ...([1, 2, 3, 4, 5].map((l) => ({
+        content: l === level ? 'You' : l === 5 ? '◌' : '',
+        styles: {
+          halign: 'center' as const,
+          fillColor: l === level
+            ? [37, 99, 235] as [number, number, number]
+            : l === 5
+              ? [220, 230, 248] as [number, number, number]
+              : [232, 237, 245] as [number, number, number],
+          textColor: l === level
+            ? [255, 255, 255] as [number, number, number]
+            : [100, 120, 160] as [number, number, number],
+          fontStyle: 'bold' as const,
+        },
+      }))),
+    ]
+  })
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Capability', 'L1', 'L2', 'L3', 'L4', 'L5 Frontier']],
+    body: matrixBody,
+    theme: 'grid',
+    headStyles: { fillColor: N800, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold', fontSize: 7 },
+    bodyStyles: { fontSize: 8, textColor: DARK },
+    columnStyles: { 0: { cellWidth: 42 } },
+    margin: { left: 14, right: 14 },
+  })
+  y = doc.lastAutoTable.finalY + 8
+
+  thinRule(doc, y)
+  y += 5
+
+  // Section B: Prioritised Recommendation
   y = sectionHeader(doc, 'YOUR PRIORITISED RECOMMENDATION', y)
 
   // Para 1 — Structural constraint
@@ -529,6 +551,40 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     const lines = doc.splitTextToSize(sentence, pageWidth - 28) as string[]
     doc.text(lines, 14, y)
     y += lines.length * 5 + 3
+  }
+
+  // m3ter citation
+  thinRule(doc, y)
+  y += 5
+
+  const m3terText = 'Companies that move from manual, flat pricing to automated, usage-based models run 20–25 points higher on NRR.'
+  doc.setFontSize(7.5)
+  doc.setTextColor(...GRAY)
+  doc.setFont('helvetica', 'italic')
+  const m3terLines = doc.splitTextToSize(m3terText, pageWidth - 28) as string[]
+  doc.text(m3terLines, 14, y)
+  y += m3terLines.length * 4.5 + 2
+
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Source: m3ter, Net Revenue Retention and SaaS Valuations (2026).', 14, y)
+  y += 6
+
+  // Leak ceiling (only when calculator was completed)
+  if (params.leakDollars !== null && params.leakDollars > 0) {
+    const fmtLeak = (n: number): string => {
+      if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
+      if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`
+      return `$${n.toFixed(0)}`
+    }
+    const ceilingText = `Your ceiling is bounded by the ${fmtLeak(params.leakDollars)} you're leaking now.`
+    doc.setFontSize(7.5)
+    doc.setTextColor(...N600)
+    doc.setFont('helvetica', 'italic')
+    const ceilingLines = doc.splitTextToSize(ceilingText, pageWidth - 28) as string[]
+    doc.text(ceilingLines, 14, y)
+    doc.setFont('helvetica', 'normal')
+    y += ceilingLines.length * 4.5 + 3
   }
 
   // ── Footers on all pages ───────────────────────────────────────────────────

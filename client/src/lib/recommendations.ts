@@ -37,10 +37,9 @@ function patternA(wCapName: string, wCapScore: number, questionTitles: string[])
   ]
 }
 
-function patternF(pricingScore: number, otherCaps: Array<{ name: string; score: number }>): string[] {
-  const others = otherCaps.map((c) => `${c.name} (${fmt(c.score)})`).join(' and ')
+function patternF(_pricingScore: number, _otherCaps: Array<{ name: string; score: number }>): string[] {
   return [
-    `Your Pricing Optimization scores ${fmt(pricingScore)}/5, lower than your ${others}. Pricing is the silent NRR killer — even strong retention and expansion can be undermined by pricing leakage.`,
+    `Pricing is the silent NRR killer — even strong retention and expansion can be undermined by pricing leakage.`,
   ]
 }
 

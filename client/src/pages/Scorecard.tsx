@@ -12,33 +12,32 @@ import {
 } from '../lib/scoring'
 import { track } from '../lib/analytics'
 import { composeRecommendation } from '../lib/recommendations'
-import { computeNRR } from '../lib/nrr'
+import { computeNRR, formatCurrency } from '../lib/nrr'
 import type { PDFParams, PDFCapabilityData } from '../lib/pdfGenerator'
 import { completeSession, type ScorecardPayload } from '../lib/api'
 import { RecommendationBlock } from '../components/scorecard/RecommendationBlock'
 import { CapabilitySummary } from '../components/scorecard/CapabilitySummary'
-import { CostSection } from '../components/scorecard/CostSection'
+import { LeakHero } from '../components/scorecard/LeakHero'
+import { ImpactCards } from '../components/scorecard/ImpactCards'
 import { V3_ASSESSMENT_CONTENT, CAP_ORDER } from '../content/assessmentContent'
+
+const LEVEL_NAMES = [
+  '',
+  'Blind',
+  'Named, not measured',
+  'Measured, not live',
+  'Surfaced and steering',
+  'Continuous and self-correcting',
+]
 
 // ── Color helpers ──────────────────────────────────────────────────────────────
 
-function cellBg(v: number | null): string {
-  if (v === null) return '#F4F6F9'
-  const ramp: Record<number, string> = { 1: '#EAEEF3', 2: '#D2DBE4', 3: '#AABBCC', 4: '#6E8AA6', 5: '#3E5C7C' }
-  return ramp[Math.round(v)] ?? '#D2DBE4'
-}
-
-function cellFg(v: number | null): string {
-  if (v === null) return '#C2CAD3'
-  return Math.round(v) >= 4 ? '#FFFFFF' : '#243B52'
-}
-
-// ── Format helpers ─────────────────────────────────────────────────────────────
-
-function fmtUSD(n: number): string {
-  const sign = n < 0 ? '-' : ''
-  const a = Math.abs(n)
-  return sign + '$' + a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function scoreColor(v: number | null): string {
+  if (v === null) return '#A7B0BC'
+  if (v >= 3.4) return '#2563EB'
+  if (v >= 3.0) return '#5B7FB0'
+  if (v >= 2.7) return '#8C9CB0'
+  return '#A7B0BC'
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -54,7 +53,7 @@ interface KpiTileProps {
 
 function KpiTile({ label, value, valueSuffix, subtitle, valueColor, fontSize = 38 }: KpiTileProps) {
   return (
-    <div style={{ background: '#FFFFFF', border: '1px solid #E3E8EE', borderRadius: 12, padding: '22px 24px' }}>
+    <div style={{ background: '#FFFFFF', border: '1px solid #E3E8EE', borderRadius: 13, padding: '20px 18px' }}>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#6B7B89' }}>
         {label}
       </div>
@@ -90,7 +89,6 @@ function Scorecard() {
   const [state, dispatch] = useAssessmentState()
   const [pdfDownloading, setPdfDownloading] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [selCellId, setSelCellId] = useState<string | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const sections = CAP_ORDER.filter((k) => state.selectedCapabilities.includes(k))
@@ -98,8 +96,6 @@ function Scorecard() {
     sections.length > 0 && sections.every((s) => state.completedSections.includes(s))
 
   const picks = toPicks(state)
-  const hasReporting = sections.includes('reporting')
-
   const overallIntelligence = getOverallMaturity(sections, picks)
 
   const weakestCap = (() => {
@@ -117,10 +113,9 @@ function Scorecard() {
 
   const { sentences: recSentences, cta } = composeRecommendation(state.selectedCapabilities, picks)
 
-  // Derived display values
-  const reportingScore = hasReporting ? getCapabilityScore('reporting', picks) : null
-  const nrrPct = nrrResult?.nrr !== null && nrrResult?.nrr !== undefined ? nrrResult.nrr * 100 : null
-  const grrPct = nrrResult?.grr !== null && nrrResult?.grr !== undefined ? nrrResult.grr * 100 : null
+  const reportingScore = sections.includes('reporting') ? getCapabilityScore('reporting', picks) : null
+  const nrrPct = nrrResult?.nrr != null ? nrrResult.nrr * 100 : null
+  const grrPct = nrrResult?.grr != null ? nrrResult.grr * 100 : null
 
   // Question title lookup: "${capKey}/${qId}" → title string
   const allQuestionTitleById: Record<string, string> = {}
@@ -129,6 +124,12 @@ function Scorecard() {
   })
 
   const pooledTop3: WeakestCell[] = getWeakestCells(sections, picks).slice(0, 3)
+
+  const allCapScores = CAP_ORDER.map((k) => ({
+    key: k,
+    name: V3_ASSESSMENT_CONTENT.find((c) => c.key === k)?.name ?? k,
+    score: sections.includes(k) ? getCapabilityScore(k, picks) : null,
+  }))
 
   // ── Animation effect ────────────────────────────────────────────────────────
 
@@ -203,6 +204,10 @@ function Scorecard() {
       }
     })
 
+    const expansionDollars = nrrResult !== null
+      ? (nrrResult.netMovementDollars ?? 0) + (nrrResult.leakDollars ?? 0)
+      : null
+
     return {
       email: state.email ?? '',
       generatedAt: state.completedAt ?? new Date().toISOString(),
@@ -211,15 +216,17 @@ function Scorecard() {
       netMovementDollars: nrrResult?.netMovementDollars ?? null,
       netMovementPct: nrrResult?.netMovementPct ?? null,
       leakDollars: nrrResult?.leakDollars ?? null,
+      expansionDollars,
       reportingMaturity: reportingScore,
       overallIntelligence,
       distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
       capabilities: capList,
+      allCapabilityScores: allCapScores,
       recommendationSentences: recSentences,
       ctaText: cta.text,
       ctaUrl: cta.url,
     }
-  }, [state, picks, sections, reportingScore, overallIntelligence, nrrResult, recSentences, cta])
+  }, [state, picks, sections, reportingScore, overallIntelligence, nrrResult, recSentences, cta, allCapScores])
 
   // ── Completion trigger ──────────────────────────────────────────────────────
 
@@ -258,6 +265,10 @@ function Scorecard() {
       recommendationSentences: recSentences,
     }
 
+    const expansionDollars = nrrResult !== null
+      ? (nrrResult.netMovementDollars ?? 0) + (nrrResult.leakDollars ?? 0)
+      : null
+
     const pdfParams: PDFParams = {
       email: state.email ?? '',
       generatedAt: completedAt,
@@ -266,6 +277,7 @@ function Scorecard() {
       netMovementDollars: nrrResult?.netMovementDollars ?? null,
       netMovementPct: nrrResult?.netMovementPct ?? null,
       leakDollars: nrrResult?.leakDollars ?? null,
+      expansionDollars,
       reportingMaturity: scorecardPayload.reportingMaturity,
       overallIntelligence,
       distanceToL5: scorecardPayload.distanceToL5,
@@ -293,6 +305,7 @@ function Scorecard() {
           }),
         }
       }),
+      allCapabilityScores: allCapScores,
       recommendationSentences: recSentences,
       ctaText: cta.text,
       ctaUrl: cta.url,
@@ -357,16 +370,13 @@ function Scorecard() {
 
   const e = 1 - Math.pow(1 - progress, 3)
 
-  // ── JSX ─────────────────────────────────────────────────────────────────────
+  // ── Stage badge ─────────────────────────────────────────────────────────────
 
-  const cardStyle: React.CSSProperties = {
-    background: '#FFFFFF',
-    border: '1px solid #E3E8EE',
-    borderRadius: 14,
-    padding: '30px 32px',
-    marginTop: 18,
-    boxShadow: '0 14px 40px rgba(14,43,65,.07)',
-  }
+  const overallLevel = overallIntelligence !== null
+    ? Math.max(1, Math.min(5, Math.round(overallIntelligence)))
+    : null
+
+  // ── JSX ─────────────────────────────────────────────────────────────────────
 
   return (
     <div
@@ -390,31 +400,43 @@ function Scorecard() {
 
       <main id="main-content" style={{ maxWidth: 1080, margin: '0 auto', padding: '64px 24px 96px' }}>
 
-        {/* Header */}
+        {/* Header + stage badge */}
         <div data-reveal="head" style={{ marginBottom: 30 }}>
-          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 42, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E2B41', margin: '0 0 6px' }}>
+          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 42, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E2B41', margin: '0 0 12px' }}>
             NRR Intelligence Scorecard
           </h1>
-          <p style={{ margin: 0, fontSize: 15, color: '#6B7B89' }}>
-            A live read of where your revenue engine stands — and what moving each lever is worth.
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const }}>
+            {overallLevel !== null && (
+              <span style={{
+                background: '#0E2B41',
+                color: '#FFFFFF',
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '5px 14px',
+                borderRadius: 999,
+                letterSpacing: '.04em',
+              }}>
+                L{overallLevel} · {LEVEL_NAMES[overallLevel]}
+              </span>
+            )}
+            <p style={{ margin: 0, fontSize: 15, color: '#6B7B89' }}>
+              A live read of where your revenue engine stands — and what moving each lever is worth.
+            </p>
+          </div>
         </div>
 
-        {/* What This Is Costing You */}
-        <CostSection
-          nrrResult={nrrResult}
-          pooledTop3={pooledTop3}
-          picks={picks}
-          selectedCaps={sections}
-        />
+        {/* Leak hero + concentrated (only when calculator not skipped) */}
+        {!state.nrrCalculatorSkipped && nrrResult && state.nrrInputs && (
+          <LeakHero nrrResult={nrrResult} nrrInputs={state.nrrInputs} />
+        )}
 
-        {/* KPI tiles */}
-        <div data-reveal="kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 16 }}>
+        {/* 5 KPI tiles */}
+        <div data-reveal="kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginTop: 20, marginBottom: 16 }}>
           <KpiTile
             label="NRR"
             value={nrrPct !== null ? `${(nrrPct * e).toFixed(1)}%` : '—'}
             subtitle="Based on your most recent quarter"
-            valueColor={nrrPct !== null ? '#0E2B41' : '#C2CAD3'}
+            valueColor={nrrPct !== null ? scoreColor(nrrPct / 100 * 5) : '#C2CAD3'}
           />
           <KpiTile
             label="GRR"
@@ -422,21 +444,12 @@ function Scorecard() {
             subtitle="Retention before expansion"
             valueColor={grrPct !== null ? '#3D6090' : '#C2CAD3'}
           />
-          {hasReporting && (
-            <KpiTile
-              label="Reporting Maturity"
-              value={reportingScore !== null ? `${(reportingScore * e).toFixed(2)}` : '—'}
-              valueSuffix={reportingScore !== null ? '/5' : undefined}
-              subtitle={reportingScore !== null ? 'NRR Reporting capability' : 'Not yet measured'}
-              valueColor={reportingScore !== null ? '#3D6090' : '#C2CAD3'}
-            />
-          )}
           <KpiTile
             label="Overall Intelligence"
             value={overallIntelligence !== null ? `${(overallIntelligence * e).toFixed(2)}` : '—'}
             valueSuffix={overallIntelligence !== null ? '/5' : undefined}
             subtitle={overallIntelligence !== null ? getMaturityStage(overallIntelligence) : 'No capabilities assessed'}
-            valueColor={overallIntelligence !== null ? '#3D6090' : '#C2CAD3'}
+            valueColor={overallIntelligence !== null ? scoreColor(overallIntelligence) : '#C2CAD3'}
           />
           <KpiTile
             label="Distance to L5"
@@ -447,17 +460,17 @@ function Scorecard() {
           <KpiTile
             label="Net Movement"
             value={
-              nrrResult?.netMovementDollars !== null && nrrResult?.netMovementDollars !== undefined
-                ? fmtUSD(nrrResult.netMovementDollars * e)
+              nrrResult?.netMovementDollars != null
+                ? formatCurrency(nrrResult.netMovementDollars * e, { compact: true })
                 : '—'
             }
             subtitle={
-              nrrResult?.netMovementPct !== null && nrrResult?.netMovementPct !== undefined
+              nrrResult?.netMovementPct != null
                 ? `(${(nrrResult.netMovementPct * 100 * e).toFixed(1)}%) vs last quarter`
                 : 'Not calculated'
             }
             valueColor={
-              nrrResult?.netMovementDollars !== null && nrrResult?.netMovementDollars !== undefined
+              nrrResult?.netMovementDollars != null
                 ? (nrrResult.netMovementDollars < 0 ? '#9C6B5B' : '#4E7C66')
                 : '#C2CAD3'
             }
@@ -465,98 +478,43 @@ function Scorecard() {
           />
         </div>
 
-        {/* Capability summary (accordion) */}
+        {/* Capability summary */}
         {sections.length > 0 && (
-          <div data-reveal="caps" style={{ ...cardStyle }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#0E2B41', margin: '0 0 16px' }}>
-              Capability Summary
-            </h2>
+          <div data-reveal="caps" style={{
+            background: '#FFFFFF',
+            border: '1px solid #E3E8EE',
+            borderRadius: 16,
+            padding: '30px 32px',
+            marginTop: 18,
+            boxShadow: '0 14px 40px rgba(14,43,65,.06)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' as const }}>
+              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#0E2B41', margin: 0 }}>
+                Capability Summary
+              </h2>
+              <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 12, color: '#9AA7B3' }}>
+                Click a capability to explore
+              </span>
+            </div>
             <CapabilitySummary picks={picks} selectedCaps={sections} />
           </div>
         )}
 
-        {/* Top 3 questions — pooled across all selected caps */}
-        {pooledTop3.length > 0 && (
-          <div data-reveal="top" style={{ marginTop: 26 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#6B7B89', marginBottom: 14 }}>
-              3 highest-impact areas to address
-            </div>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {pooledTop3.map((lv, k) => {
-                const cellKey = `${lv.capKey}/${lv.qId}`
-                const isSel = selCellId === cellKey
-                const capContent = V3_ASSESSMENT_CONTENT.find((c) => c.key === lv.capKey)
-                const capDisplayName = capContent?.name ?? lv.capKey
-                return (
-                  <div
-                    key={cellKey}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelCellId(isSel ? null : cellKey)}
-                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setSelCellId(isSel ? null : cellKey) }}
-                    onMouseEnter={(ev) => { ev.currentTarget.style.transform = 'translateY(-3px)' }}
-                    onMouseLeave={(ev) => { ev.currentTarget.style.transform = 'none' }}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '40px 1fr auto auto',
-                      alignItems: 'center',
-                      gap: 16,
-                      background: '#FFFFFF',
-                      border: `1px solid ${isSel ? '#3D6090' : '#E3E8EE'}`,
-                      borderRadius: 12,
-                      padding: '16px 20px',
-                      cursor: 'pointer',
-                      transition: 'transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s, border-color .2s',
-                      boxShadow: isSel ? '0 12px 30px rgba(14,43,65,.12)' : 'none',
-                      userSelect: 'none',
-                    }}
-                  >
-                    <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#C2CAD3' }}>{k + 1}</div>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{allQuestionTitleById[cellKey] ?? lv.qId}</div>
-                      <div style={{ fontSize: 12, color: '#AEB8C2', marginTop: 2 }}>{capDisplayName}</div>
-                    </div>
-                    <span style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, color: cellFg(lv.score), background: cellBg(lv.score), padding: '5px 14px', borderRadius: 8 }}>
-                      {lv.score}
-                    </span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7B89', whiteSpace: 'nowrap' }}>
-                      +{lv.gapToL5} to L5
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+        {/* Impact cards */}
+        <ImpactCards pooledTop3={pooledTop3} allQuestionTitleById={allQuestionTitleById} />
 
-        {/* Recommendation */}
-        <div style={{ marginTop: 36 }}>
-          <RecommendationBlock />
-        </div>
+        {/* Recommendation + CTA */}
+        <RecommendationBlock
+          sentences={recSentences}
+          cta={cta}
+          onDownloadPDF={handleDownloadPDF}
+          pdfDownloading={pdfDownloading}
+          leakDollars={nrrResult?.leakDollars ?? null}
+          capabilityScores={allCapScores}
+        />
 
-        {/* Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginTop: 56 }}>
-          <button
-            type="button"
-            onClick={handleDownloadPDF}
-            disabled={pdfDownloading}
-            style={{
-              background: '#2563EB',
-              color: '#FFFFFF',
-              fontWeight: 700,
-              fontSize: 14,
-              padding: '12px 36px',
-              borderRadius: 10,
-              border: 'none',
-              cursor: pdfDownloading ? 'not-allowed' : 'pointer',
-              opacity: pdfDownloading ? 0.6 : 1,
-              transition: 'opacity .2s, transform .15s',
-            }}
-            onMouseEnter={(ev) => { if (!pdfDownloading) ev.currentTarget.style.transform = 'translateY(-2px)' }}
-            onMouseLeave={(ev) => { ev.currentTarget.style.transform = 'none' }}
-          >
-            {pdfDownloading ? 'Generating PDF…' : 'Download PDF Report'}
-          </button>
+        {/* Restart */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 48 }}>
           <button
             type="button"
             onClick={handleRestart}
@@ -565,6 +523,7 @@ function Scorecard() {
             Restart Assessment
           </button>
         </div>
+
       </main>
     </div>
   )

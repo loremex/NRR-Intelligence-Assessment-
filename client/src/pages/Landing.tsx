@@ -5,744 +5,283 @@ import { useAssessmentState } from '../lib/state'
 import { startSession } from '../lib/api'
 import { track, identifyUser } from '../lib/analytics'
 
-// ─── What you'll get — static data ────────────────────────────────────────
+// ─── Assessment Intro section ──────────────────────────────────────────────
 
-interface WYGCap {
-  name: string
-  score: number
-  blurb: string
-  levers: { Impact: number; Whitespace: number; Accountability: number; Playbook: number; Execution: number; Governance: number }
-}
+const INTRO_ACCENT = '#2563EB'
 
-const WYG_CAPS: WYGCap[] = [
-  {
-    name: 'Revenue Retention',
-    score: 3.2,
-    blurb: 'You hold the base well, but saves are reactive rather than orchestrated.',
-    levers: { Impact: 3.4, Whitespace: 3.0, Accountability: 3.1, Playbook: 3.3, Execution: 3.2, Governance: 3.0 },
-  },
-  {
-    name: 'Revenue Expansion',
-    score: 2.8,
-    blurb: "Upsell happens, but signals and plays aren't yet systematic.",
-    levers: { Impact: 2.9, Whitespace: 2.6, Accountability: 2.7, Playbook: 3.0, Execution: 2.8, Governance: 2.6 },
-  },
-  {
-    name: 'Pricing Optimization',
-    score: 2.4,
-    blurb: 'Pricing is largely intuition-led with limited experimentation.',
-    levers: { Impact: 2.2, Whitespace: 2.5, Accountability: 2.3, Playbook: 2.6, Execution: 2.4, Governance: 2.2 },
-  },
-  {
-    name: 'NRR Reporting',
-    score: 3.8,
-    blurb: 'Strong visibility — your reporting is closest to best-in-class.',
-    levers: { Impact: 3.6, Whitespace: 3.7, Accountability: 4.0, Playbook: 3.9, Execution: 3.8, Governance: 3.7 },
-  },
-]
+const INTRO_AREAS = [
+  { tag: 'Measure', title: 'NRR Reporting', icon: 'report', role: 'The foundation', desc: 'Knowing your true net revenue retention — cleanly, by segment, in real time — before you try to move it.' },
+  { tag: 'Protect', title: 'Revenue Retention', icon: 'retain', role: 'Hold the base', desc: 'Reducing churn and contraction by catching risk early and turning saves into a repeatable motion.' },
+  { tag: 'Grow', title: 'Revenue Expansion', icon: 'expand', role: 'Grow within', desc: 'Unlocking upsell, cross-sell, and seat growth inside the accounts you already retain.' },
+  { tag: 'Capture', title: 'Pricing Optimization', icon: 'price', role: 'Capture value', desc: 'Aligning price and packaging to the value you deliver, tested with discipline rather than intuition.' },
+] as const
 
-const WYG_LEVELS = ['', 'Foundational', 'Developing', 'Accountable', 'Managed', 'Predictive']
-
-const WYG_FEATURES: { title: string; body: string; color: string; icon: 'gauge' | 'gap' | 'target' }[] = [
-  {
-    title: 'Intelligence score',
-    body: 'Rated L1–L5 across 6 intelligence levers — Impact, Whitespace, Accountability, Playbook, Execution, and Governance.',
-    color: '#1F3A5C',
-    icon: 'gauge',
-  },
-  {
-    title: 'Gap analysis',
-    body: 'Distance to L5 (Predictive) — see precisely how far you are from best-in-class.',
-    color: '#3D6090',
-    icon: 'gap',
-  },
-  {
-    title: 'Recommendation',
-    body: 'One prioritised action block based on your weakest dimension and capability.',
-    color: '#76859A',
-    icon: 'target',
-  },
-]
-
-function wygColor(v: number): string {
-  if (v >= 3.5) return '#1F3A5C'
-  if (v >= 3.0) return '#3D6090'
-  if (v >= 2.6) return '#76859A'
-  return '#9AA3AE'
-}
-
-// ─── What you'll get — sub-components ─────────────────────────────────────
-
-function CapRow({
-  cap,
-  color,
-  pct,
-  selected,
-  onSelect,
-}: {
-  cap: WYGCap
-  color: string
-  pct: number
-  selected: boolean
-  onSelect: () => void
-}) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-pressed={selected}
-      onClick={onSelect}
-      onKeyDown={(ev) => {
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          ev.preventDefault()
-          onSelect()
-        }
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 160px) 1fr 46px',
-        alignItems: 'center',
-        gap: 18,
-        padding: '15px 14px',
-        cursor: 'pointer',
-        borderRadius: 10,
-        background: selected ? 'rgba(31,58,92,.05)' : hovered ? '#F4F7FB' : 'transparent',
-        boxShadow: selected ? `inset 3px 0 0 ${color}` : 'inset 3px 0 0 transparent',
-        transition: 'background .25s ease, box-shadow .25s ease',
-      }}
-    >
-      <span
-        style={{
-          fontSize: 15,
-          fontWeight: 600,
-          color: '#0E2B41',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {cap.name}
-      </span>
-      <div style={{ position: 'relative', height: 9, borderRadius: 999, background: '#EAEEF3' }}>
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            height: 9,
-            width: `${pct}%`,
-            borderRadius: 999,
-            background: color,
-            transition: 'background .25s',
-          }}
-        />
-      </div>
-      <span
-        style={{
-          fontFamily: "'Spectral', Georgia, serif",
-          fontSize: 19,
-          fontWeight: 700,
-          color,
-          textAlign: 'right',
-        }}
-      >
-        {cap.score.toFixed(1)}
-      </span>
-    </div>
-  )
-}
-
-function DetailPanel({ cap, color, level }: { cap: WYGCap; color: string; level: number }) {
-  const dims = Object.entries(cap.levers) as [string, number][]
-  return (
-    <div
-      style={{
-        background: '#F8FAFC',
-        border: '1px solid #E3E8EE',
-        borderRadius: 12,
-        padding: '24px 26px',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1px 1.05fr',
-        gap: 26,
-        alignItems: 'center',
-      }}
-    >
-      {/* Left: capability info + level ladder */}
-      <div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            marginBottom: 4,
-            flexWrap: 'wrap',
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "'Spectral', Georgia, serif",
-              fontSize: 20,
-              fontWeight: 700,
-              color: '#0E2B41',
-            }}
-          >
-            {cap.name}
-          </span>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color,
-              background: color + '1A',
-              padding: '4px 10px',
-              borderRadius: 999,
-            }}
-          >
-            L{level} · {WYG_LEVELS[level]}
-          </span>
-        </div>
-        <p
-          style={{
-            margin: '6px 0 16px',
-            fontSize: 14,
-            lineHeight: 1.55,
-            color: '#52606D',
-            maxWidth: 360,
-          }}
-        >
-          {cap.blurb}
-        </p>
-        {/* Level ladder */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          {[1, 2, 3, 4, 5].map((L) => (
-            <div key={L} style={{ flex: 1, textAlign: 'center' }}>
-              <div
-                style={{
-                  height: 6,
-                  borderRadius: 999,
-                  background: L <= level ? color : '#E2E8EF',
-                  transition: 'background .3s',
-                }}
-              />
-              <div
-                style={{
-                  marginTop: 7,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  color: L === level ? color : '#A6B0BB',
-                }}
-              >
-                L{L}
-              </div>
-              <div
-                style={{
-                  fontSize: 9,
-                  fontWeight: 600,
-                  letterSpacing: '0.02em',
-                  textTransform: 'uppercase',
-                  color: L === level ? '#52606D' : '#C2CAD3',
-                  marginTop: 2,
-                }}
-              >
-                {WYG_LEVELS[L]}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div style={{ background: '#E3E8EE', alignSelf: 'stretch', width: 1 }} />
-
-      {/* Right: dimension breakdown */}
-      <div>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: '#6B7B89',
-            marginBottom: 14,
-          }}
-        >
-          L1–L5 across intelligence levers
-        </div>
-        <div style={{ display: 'grid', gap: 12 }}>
-          {dims.map(([k, v]) => (
-            <div
-              key={k}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '96px 1fr 34px',
-                alignItems: 'center',
-                gap: 12,
-              }}
-            >
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#52606D' }}>{k}</span>
-              <div style={{ height: 7, borderRadius: 999, background: '#E7ECF2' }}>
-                <div
-                  style={{
-                    height: 7,
-                    width: `${(v / 5) * 100}%`,
-                    borderRadius: 999,
-                    background: color,
-                    transition: 'width .55s cubic-bezier(.22,1,.36,1)',
-                  }}
-                />
-              </div>
-              <span
-                style={{ fontSize: 13, fontWeight: 700, color: '#0E2B41', textAlign: 'right' }}
-              >
-                {v.toFixed(1)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function FeatureCard({
-  title,
-  body,
-  color,
-  icon,
-}: {
-  title: string
-  body: string
-  color: string
-  icon: 'gauge' | 'gap' | 'target'
-}) {
-  const [hovered, setHovered] = useState(false)
-
-  const renderIcon = () => {
-    if (icon === 'gauge')
-      return (
-        <svg
-          width={22}
-          height={22}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke={color}
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 14 16 9" />
-          <path d="M4 18a8 8 0 1 1 16 0" />
-          <circle cx={12} cy={14} r={1.4} fill={color} stroke="none" />
-        </svg>
-      )
-    if (icon === 'gap')
-      return (
-        <svg
-          width={22}
-          height={22}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke={color}
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M5 12h6" />
-          <path d="M13 12h6" />
-          <path d="M5 8v8" />
-          <path d="M19 8v8" />
-        </svg>
-      )
-    return (
-      <svg
-        width={22}
-        height={22}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx={12} cy={12} r={8} />
-        <circle cx={12} cy={12} r={3.5} />
-      </svg>
-    )
+function introIcon(name: string) {
+  const p = {
+    width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none',
+    stroke: INTRO_ACCENT, strokeWidth: 1.9,
+    strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
   }
-
+  if (name === 'report') return (
+    <svg {...p}>
+      <path d="M4 19V5" /><path d="M4 19h16" />
+      <rect x={7} y={11} width={3} height={5} rx={0.5} />
+      <rect x={12} y={8} width={3} height={8} rx={0.5} />
+      <rect x={17} y={13} width={3} height={3} rx={0.5} />
+    </svg>
+  )
+  if (name === 'retain') return (
+    <svg {...p}>
+      <path d="M12 21s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.4-7 10-7 10z" />
+    </svg>
+  )
+  if (name === 'expand') return (
+    <svg {...p}>
+      <path d="M4 14l4-4 4 3 7-7" /><path d="M15 6h5v5" />
+    </svg>
+  )
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: '#FFFFFF',
-        border: '1px solid #E3E8EE',
-        borderRadius: 14,
-        padding: '26px 24px',
-        borderTop: `3px solid ${color}`,
-        transition: 'transform .28s cubic-bezier(.22,1,.36,1), box-shadow .28s ease',
-        cursor: 'default',
-        transform: hovered ? 'translateY(-6px)' : 'none',
-        boxShadow: hovered ? '0 18px 40px rgba(14,43,65,.14)' : 'none',
-      }}
-    >
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 11,
-          background: color + '14',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 16,
-        }}
-      >
-        {renderIcon()}
-      </div>
-      <div
-        style={{
-          fontFamily: "'Spectral', Georgia, serif",
-          fontSize: 20,
-          fontWeight: 700,
-          color: '#0E2B41',
-          marginBottom: 8,
-        }}
-      >
-        {title}
-      </div>
-      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#52606D' }}>{body}</p>
-    </div>
+    <svg {...p}>
+      <circle cx={12} cy={12} r={8} />
+      <path d="M12 8v8" />
+      <path d="M14.5 9.5C14.5 8.3 13.3 8 12 8s-2.3.7-2.3 1.8c0 2.4 4.6 1.4 4.6 3.9 0 1.1-1.2 1.8-2.3 1.8s-2.5-.5-2.5-1.7" />
+    </svg>
   )
 }
 
-// ─── What you'll get section ───────────────────────────────────────────────
-
-function WhatYoullGet() {
-  const [inView, setInView] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [sel, setSel] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const rafRef = useRef<number | null>(null)
+function AssessmentIntro() {
+  const [shown, setShown] = useState(false)
+  const [hovered, setHovered] = useState<number | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const root = containerRef.current
+    const root = rootRef.current
     if (!root) return
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduced) {
-      setInView(true)
-      setProgress(1)
-      return
-    }
-    const start = () => {
-      setInView(true)
-      const dur = 1150
-      const t0 = performance.now()
-      const tick = (now: number) => {
-        const p = Math.min(1, (now - t0) / dur)
-        setProgress(p)
-        if (p < 1) rafRef.current = requestAnimationFrame(tick)
-      }
-      rafRef.current = requestAnimationFrame(tick)
-    }
+    if (reduced) { setShown(true); return }
     const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          start()
-          io.disconnect()
-        }
-      },
-      { threshold: 0.15 },
+      (entries) => { if (entries.some((e) => e.isIntersecting)) { setShown(true); io.disconnect() } },
+      { threshold: 0.1 },
     )
     io.observe(root)
-    return () => {
-      io.disconnect()
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    }
+    return () => io.disconnect()
   }, [])
-
-  const eased = 1 - Math.pow(1 - progress, 3)
-  const nrrDisp = Math.round(108 * eased)
-  const intelDisp = (3.2 * eased).toFixed(1)
-  const gapDisp = (1.8 * eased).toFixed(1)
-  const selectedCap = WYG_CAPS[sel]!
-  const capColor = wygColor(selectedCap.score)
-  const capLevel = Math.round(selectedCap.score)
 
   return (
     <section
-      ref={containerRef}
-      data-motion="on"
+      ref={rootRef}
       style={{
         background: '#EEF1F4',
-        padding: '72px 24px 88px',
-        fontFamily: "'DM Sans', system-ui, sans-serif",
+        padding: '80px 24px 96px',
+        fontFamily: "Georgia, 'Times New Roman', serif",
+        color: '#0E2B41',
       }}
     >
+      <style>{`
+        @keyframes introTravel {
+          0%   { left: -80px; opacity: 0 }
+          8%   { opacity: 1 }
+          92%  { opacity: 1 }
+          100% { left: 100%; opacity: 0 }
+        }
+        @keyframes introPulse {
+          0%, 100% { box-shadow: 0 0 0 0   rgba(37,99,235,.45) }
+          55%      { box-shadow: 0 0 0 7px rgba(37,99,235,0)   }
+        }
+        @keyframes introFloat {
+          0%, 100% { transform: translateY(0) }
+          50%      { transform: translateY(-4px) }
+        }
+        .intro-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 18px;
+          position: relative;
+          padding-top: 44px;
+        }
+        .intro-connector {
+          position: absolute;
+          top: 21px;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: #E3E8EE;
+          border-radius: 999px;
+          overflow: hidden;
+        }
+        .intro-dot {
+          position: absolute;
+          top: -30px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 14px;
+          height: 14px;
+          border-radius: 999px;
+          transition: background 0.25s ease;
+        }
+        @media (max-width: 860px) {
+          .intro-grid { grid-template-columns: repeat(2, 1fr); }
+          .intro-connector { display: none; }
+          .intro-dot { display: none; }
+        }
+        @media (max-width: 480px) {
+          .intro-grid { grid-template-columns: 1fr; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .intro-travel, .intro-float, .intro-pulse { animation: none !important; }
+        }
+      `}</style>
+
       <div style={{ maxWidth: 1080, margin: '0 auto' }}>
 
-        {/* Heading */}
-        <div
-          data-reveal="head"
-          data-inview={inView ? 'true' : undefined}
-          style={{ textAlign: 'center', marginBottom: 48 }}
-        >
-          <h2
-            style={{
-              fontFamily: "'Spectral', Georgia, serif",
-              fontSize: 'clamp(36px, 4.5vw, 52px)',
-              fontWeight: 700,
-              letterSpacing: '-0.01em',
-              color: '#0E2B41',
-              margin: '0 0 18px',
-            }}
-          >
-            What you'll get
+        {/* Text block */}
+        <div style={{
+          maxWidth: 680,
+          marginBottom: 14,
+          opacity: shown ? 1 : 0,
+          transform: shown ? 'none' : 'translateY(26px)',
+          transition: 'opacity .72s cubic-bezier(.22,1,.36,1), transform .72s cubic-bezier(.22,1,.36,1)',
+        }}>
+
+          {/* Eyebrow */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 9,
+            fontSize: 11, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase',
+            color: INTRO_ACCENT, marginBottom: 20,
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+          }}>
+            <span style={{ width: 24, height: 1.5, background: INTRO_ACCENT, display: 'inline-block' }} />
+            Before we begin
+          </div>
+
+          {/* Heading */}
+          <h2 style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 'clamp(32px, 4.5vw, 52px)',
+            fontWeight: 700, lineHeight: 1.07, letterSpacing: '-.015em',
+            color: '#0E2B41', margin: '0 0 18px',
+          }}>
+            Your Post-Sales Engine for What Comes Next
           </h2>
-          <p
-            style={{
-              fontSize: 18,
-              lineHeight: 1.6,
-              color: '#52606D',
-              margin: '0 auto',
-              maxWidth: 560,
-            }}
-          >
-            A structured scorecard showing your NRR intelligence level across four capabilities —
-            and a prioritised focus area to move the number.
+
+          {/* Italic subhead */}
+          <p style={{
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontStyle: 'italic', fontSize: 22, lineHeight: 1.4,
+            color: INTRO_ACCENT, margin: '0 0 26px',
+          }}>
+            Measured against where post-sales is headed — not where it&rsquo;s been.
+          </p>
+
+          {/* Body paragraphs */}
+          <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            Most assessments grade these four areas against best practices — the playbooks that defined SaaS for the last decade. Those playbooks are exactly what the next generation of companies are leaving behind.
+          </p>
+          <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            This one measures something different: how closely your operation runs on what actually drives each area — and how far that is from where the best operators are already going. Not &ldquo;do you follow the playbook,&rdquo; but{' '}
+            <span style={{ color: INTRO_ACCENT, fontWeight: 600 }}>&ldquo;can you see it, price it, and act on it in time.&rdquo;</span>
+          </p>
+          <p style={{ margin: 0, fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            What you get back isn&rsquo;t a grade against your peers. It&rsquo;s the distance between how you run today and how post-sales runs when it&rsquo;s built for what&rsquo;s coming.
           </p>
         </div>
 
-        {/* Main card */}
-        <div
-          data-reveal="card"
-          data-inview={inView ? 'true' : undefined}
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid #E3E8EE',
-            borderRadius: 14,
-            padding: 34,
-            boxShadow: '0 18px 50px rgba(14,43,65,.10)',
-          }}
-        >
+        {/* Card flow */}
+        <div style={{ position: 'relative', marginTop: 56 }}>
 
-          {/* Headline tiles */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: 16,
-              marginBottom: 34,
-            }}
-          >
-            {/* NRR tile */}
+          {/* Connector line + traveling glow */}
+          <div className="intro-connector">
             <div
+              className="intro-travel"
               style={{
-                position: 'relative',
-                overflow: 'hidden',
-                borderRadius: 12,
-                padding: '24px 22px',
-                background: 'linear-gradient(160deg, #0E2B41, #163C5C)',
+                position: 'absolute', top: 0, height: '100%', width: 80,
+                background: `linear-gradient(90deg, transparent 0%, ${INTRO_ACCENT}CC 35%, ${INTRO_ACCENT} 50%, ${INTRO_ACCENT}CC 65%, transparent 100%)`,
+                animation: 'introTravel 3.5s ease-in-out infinite',
               }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  color: '#9FBDE4',
-                }}
-              >
-                Your NRR
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Spectral', Georgia, serif",
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  margin: '12px 0',
-                  color: '#FFFFFF',
-                  fontSize: 46,
-                }}
-              >
-                {nrrDisp}%
-              </div>
-              <span
-                style={{
-                  display: 'inline-block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  color: '#5B6B7B',
-                  background: '#EAEEF3',
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                }}
-              >
-                Net positive
-              </span>
-            </div>
-
-            {/* Intelligence tile */}
-            <div
-              style={{
-                borderRadius: 12,
-                padding: '24px 22px',
-                background: '#F4F7FB',
-                border: '1px solid #E3E8EE',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  color: '#6B7B89',
-                }}
-              >
-                Intelligence
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Spectral', Georgia, serif",
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  margin: '12px 0',
-                  color: '#0E2B41',
-                  fontSize: 46,
-                }}
-              >
-                {intelDisp}
-                <span style={{ fontSize: 22, color: '#9AA7B3' }}>/5</span>
-              </div>
-              <span
-                style={{
-                  display: 'inline-block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  color: '#3D6090',
-                  background: '#EAEFF5',
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                }}
-              >
-                L3 · Accountable
-              </span>
-            </div>
-
-            {/* Gap tile */}
-            <div
-              style={{
-                borderRadius: 12,
-                padding: '24px 22px',
-                background: '#F4F7FB',
-                border: '1px solid #E3E8EE',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  color: '#6B7B89',
-                }}
-              >
-                Gap to L5
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Spectral', Georgia, serif",
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  margin: '12px 0',
-                  color: '#0E2B41',
-                  fontSize: 46,
-                }}
-              >
-                {gapDisp}
-              </div>
-              <span
-                style={{
-                  display: 'inline-block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  color: '#76859A',
-                  background: '#EEF1F4',
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                }}
-              >
-                Points to best-in-class
-              </span>
-            </div>
+            />
           </div>
 
-          {/* Cap rows header */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-              marginBottom: 8,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-                color: '#6B7B89',
-              }}
-            >
-              Capability scores
-            </div>
-            <div style={{ fontSize: 12, color: '#9AA7B3' }}>Click a capability to explore</div>
+          {/* Cards */}
+          <div className="intro-grid">
+            {INTRO_AREAS.map((area, i) => {
+              const isSel = hovered === i
+              return (
+                <div
+                  key={i}
+                  onMouseEnter={() => setHovered(i)}
+                  onMouseLeave={() => setHovered(null)}
+                  style={{
+                    position: 'relative',
+                    background: '#FFFFFF',
+                    border: `1px solid ${isSel ? INTRO_ACCENT : '#E3E8EE'}`,
+                    borderRadius: 16,
+                    padding: '26px 24px 28px',
+                    cursor: 'default',
+                    opacity: shown ? 1 : 0,
+                    transform: isSel ? 'translateY(-8px)' : (shown ? 'translateY(0)' : 'translateY(30px)'),
+                    boxShadow: isSel ? '0 22px 48px rgba(14,43,65,.16)' : '0 1px 2px rgba(14,43,65,.04)',
+                    transition: `opacity .6s cubic-bezier(.22,1,.36,1) ${0.25 + i * 0.13}s, transform .6s cubic-bezier(.22,1,.36,1) ${isSel ? '0s' : String(0.25 + i * 0.13) + 's'}, box-shadow .32s ease, border-color .25s ease`,
+                  }}
+                >
+                  {/* Dot on connector */}
+                  <div
+                    className={`intro-dot${isSel ? ' intro-pulse' : ''}`}
+                    style={{
+                      background: isSel ? INTRO_ACCENT : '#D1D9E0',
+                      animation: isSel ? 'introPulse 1.8s ease-in-out infinite' : undefined,
+                    }}
+                  />
+
+                  {/* Tag */}
+                  <div style={{
+                    fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase',
+                    color: INTRO_ACCENT, marginBottom: 16,
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                  }}>
+                    {area.tag}
+                  </div>
+
+                  {/* Icon */}
+                  <div
+                    className={isSel ? 'intro-float' : undefined}
+                    style={{
+                      width: 44, height: 44, borderRadius: 12,
+                      background: INTRO_ACCENT + '14',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      marginBottom: 16,
+                      animation: isSel ? 'introFloat 2.4s ease-in-out infinite' : undefined,
+                    }}
+                  >
+                    {introIcon(area.icon)}
+                  </div>
+
+                  {/* Title */}
+                  <div style={{
+                    fontFamily: "Georgia, 'Times New Roman', serif",
+                    fontSize: 18, fontWeight: 700, color: '#0E2B41', marginBottom: 4,
+                  }}>
+                    {area.title}
+                  </div>
+
+                  {/* Role */}
+                  <div style={{
+                    fontSize: 13, fontWeight: 600, color: '#8896A3', marginBottom: 12,
+                    fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '.01em',
+                  }}>
+                    {area.role}
+                  </div>
+
+                  {/* Description */}
+                  <p style={{
+                    margin: 0, fontSize: 14, lineHeight: 1.65, color: '#52606D',
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                  }}>
+                    {area.desc}
+                  </p>
+                </div>
+              )
+            })}
           </div>
-
-          {/* Cap rows */}
-          <div style={{ borderTop: '1px solid #EEF1F4' }}>
-            {WYG_CAPS.map((c, i) => (
-              <CapRow
-                key={c.name}
-                cap={c}
-                color={wygColor(c.score)}
-                pct={(c.score / 5) * 100 * eased}
-                selected={i === sel}
-                onSelect={() => setSel(i)}
-              />
-            ))}
-          </div>
-
-          {/* Detail panel */}
-          <div style={{ marginTop: 18 }}>
-            <DetailPanel cap={selectedCap} color={capColor} level={capLevel} />
-          </div>
-
-        </div>
-
-        {/* Feature cards */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 20,
-            marginTop: 28,
-          }}
-        >
-          {WYG_FEATURES.map((f) => (
-            <FeatureCard key={f.title} title={f.title} body={f.body} color={f.color} icon={f.icon} />
-          ))}
         </div>
 
       </div>
@@ -887,8 +426,8 @@ function Landing() {
         </div>
       </section>
 
-      {/* ── What you'll get ───────────────────────────────────────────── */}
-      <WhatYoullGet />
+      {/* ── Assessment Intro ──────────────────────────────────────────── */}
+      <AssessmentIntro />
 
       {/* ── Email gate ───────────────────────────────────────────────── */}
       <section id="main-content" className="bg-white py-20 px-6">
@@ -948,7 +487,7 @@ function Landing() {
                   className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-brand-blue focus:ring-2 focus:ring-brand-blue"
                 />
                 <span className="text-sm text-text-dark leading-relaxed">
-                  I agree to receive my scorecard via email and Loremex's occasional NRR
+                  I agree to receive my scorecard via email and Loremex&apos;s occasional NRR
                   Intelligence insights. Unsubscribe anytime.
                 </span>
               </label>
