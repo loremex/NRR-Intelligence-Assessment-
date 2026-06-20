@@ -258,7 +258,7 @@ function DiagnosticVerdict() {
 
   function handleGoDeeper() {
     const capMap: Record<DiagnosticBlock, import('../lib/state').CapKey> = {
-      reporting: 'measurement',
+      reporting: 'reporting',
       retention: 'retention',
       expansion: 'expansion',
       pricing:   'pricing',

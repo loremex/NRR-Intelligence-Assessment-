@@ -36,7 +36,7 @@ export interface ScorecardPayload {
   distanceToL5: number | null
   weakestCapability: string | null
   capabilitiesSelected: string[]
-  scope: 'full' | 'action-only' | 'partial' | 'measurement-only'
+  scope: 'full' | 'partial'
   capabilityOveralls: Record<string, number | null>
   recommendationSentences: string[]
 }

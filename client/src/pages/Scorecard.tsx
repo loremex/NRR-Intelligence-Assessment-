@@ -1,20 +1,23 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useAssessmentState, type ActionCapKey, type CapKey } from '../lib/state'
-import { getCapability } from '../lib/rubric'
-import { getCapabilityOverall, getThreeWeakestLevers, getMeasurementOverall, getV2CellScore, getV2WeakestCells, getV2MaturityStage, V2_LEVERS, type AllPicks } from '../lib/scoring'
+import { useAssessmentState, type CapKey } from '../lib/state'
+import {
+  getCapabilityScore,
+  getOverallMaturity,
+  getMaturityStage,
+  getWeakestCells,
+  getCellScore,
+  type AllPicks,
+  type WeakestCell,
+} from '../lib/scoring'
 import { track } from '../lib/analytics'
 import { composeRecommendation } from '../lib/recommendations'
 import { computeNRR } from '../lib/nrr'
 import type { PDFParams, PDFCapabilityData } from '../lib/pdfGenerator'
 import { completeSession, type ScorecardPayload } from '../lib/api'
-import { MeasurementHeatmap } from '../components/scorecard/MeasurementHeatmap'
 import { RecommendationBlock } from '../components/scorecard/RecommendationBlock'
-import { CapabilityMatrix } from '../components/scorecard/CapabilityMatrix'
-import { V2_ASSESSMENT_CONTENT } from '../content/assessmentContent'
-import type { MeasurementCapability } from '../lib/rubric-schema'
-
-const CAP_ORDER: CapKey[] = ['measurement', 'retention', 'expansion', 'pricing']
+import { CapabilitySummary } from '../components/scorecard/CapabilitySummary'
+import { V3_ASSESSMENT_CONTENT, CAP_ORDER } from '../content/assessmentContent'
 
 // ── Color helpers ──────────────────────────────────────────────────────────────
 
@@ -63,49 +66,20 @@ function KpiTile({ label, value, valueSuffix, subtitle, valueColor, fontSize = 3
   )
 }
 
-
-
 // ── Data helpers ───────────────────────────────────────────────────────────────
 
 function toPicks(state: ReturnType<typeof useAssessmentState>[0]): AllPicks {
   return {
-    measurement: state.picks.measurement,
+    reporting: state.picks.reporting,
     retention: state.picks.retention,
     expansion: state.picks.expansion,
     pricing: state.picks.pricing,
   }
 }
 
-function deriveScorecardScope(
-  caps: CapKey[],
-): 'full' | 'action-only' | 'partial' | 'measurement-only' {
-  const hasMeasurement = caps.includes('measurement')
-  const actionCount = caps.filter((k) => k !== 'measurement').length
-  if (hasMeasurement && actionCount === 3) return 'full'
-  if (!hasMeasurement && actionCount > 0) return 'action-only'
-  if (hasMeasurement && actionCount === 0) return 'measurement-only'
+function deriveScorecardScope(caps: CapKey[]): 'full' | 'partial' {
+  if (caps.length === 4) return 'full'
   return 'partial'
-}
-
-// ── Capability descriptions (accordion content) ────────────────────────────────
-
-const CAP_DESCRIPTIONS: Record<CapKey, { whatItIs: string; howItMovesNRR: string }> = {
-  retention: {
-    whatItIs: "The discipline of keeping the customers and revenue you've already won — minimizing logo churn and revenue contraction.",
-    howItMovesNRR: "Sets your NRR floor. Without retention, every expansion dollar is just refilling a leaky bucket.",
-  },
-  expansion: {
-    whatItIs: "The systematic motion of growing accounts after the initial sale — upsells, cross-sells, seat additions, usage growth.",
-    howItMovesNRR: "This is what pushes NRR above 100%. Without expansion, the best you can achieve is breaking even on what you started with.",
-  },
-  pricing: {
-    whatItIs: "How well your pricing model captures the value your solution delivers, with discipline around discounting and value-based packaging.",
-    howItMovesNRR: "Determines whether you keep the value you create or leak it through unnecessary discounting. Often the highest-leverage, lowest-effort lever.",
-  },
-  measurement: {
-    whatItIs: "The measurement foundation — consistent NRR definitions, trustworthy data, and real-time visibility across teams.",
-    howItMovesNRR: "You can't move what you can't measure. Reporting maturity determines whether you can act on retention, expansion, and pricing signals in time.",
-  },
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -115,9 +89,7 @@ function Scorecard() {
   const [state, dispatch] = useAssessmentState()
   const [pdfDownloading, setPdfDownloading] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [selLeverId, setSelLeverId] = useState<string | null>(null)
-  const [expandedCapId, setExpandedCapId] = useState<CapKey | null>(null)
-  const [hoverCapId, setHoverCapId] = useState<CapKey | null>(null)
+  const [selCellId, setSelCellId] = useState<string | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const sections = CAP_ORDER.filter((k) => state.selectedCapabilities.includes(k))
@@ -125,29 +97,18 @@ function Scorecard() {
     sections.length > 0 && sections.every((s) => state.completedSections.includes(s))
 
   const picks = toPicks(state)
-  const actionCaps = sections.filter((k): k is ActionCapKey => k !== 'measurement')
-  const hasMeasurement = sections.includes('measurement')
+  const hasReporting = sections.includes('reporting')
 
-  const overallIntelligence =
-    actionCaps.length > 0
-      ? actionCaps.reduce((sum, k) => {
-          const o = getCapabilityOverall(k, picks)
-          return sum + (o ?? 0)
-        }, 0) / actionCaps.length
-      : null
+  const overallIntelligence = getOverallMaturity(sections, picks)
 
   const weakestCap = (() => {
-    if (actionCaps.length === 0) return null
-    const scored = actionCaps
-      .map((k) => ({ key: k, score: getCapabilityOverall(k, picks) }))
-      .filter((c): c is { key: ActionCapKey; score: number } => c.score !== null)
+    if (sections.length === 0) return null
+    const scored = sections
+      .map((k) => ({ key: k, score: getCapabilityScore(k, picks) }))
+      .filter((c): c is { key: CapKey; score: number } => c.score !== null)
     if (scored.length === 0) return null
     return scored.reduce((min, c) => (c.score < min.score ? c : min)).key
   })()
-
-  const weakestLeverName = weakestCap
-    ? (getV2WeakestCells([weakestCap], picks)[0]?.lever ?? null)
-    : null
 
   const nrrResult = state.nrrInputs && !state.nrrCalculatorSkipped
     ? computeNRR(state.nrrInputs)
@@ -156,17 +117,17 @@ function Scorecard() {
   const { sentences: recSentences, cta } = composeRecommendation(state.selectedCapabilities, picks)
 
   // Derived display values
-  const reportingMaturity = hasMeasurement ? getMeasurementOverall(picks.measurement) : null
+  const reportingScore = hasReporting ? getCapabilityScore('reporting', picks) : null
   const nrrPct = nrrResult?.nrr !== null && nrrResult?.nrr !== undefined ? nrrResult.nrr * 100 : null
   const grrPct = nrrResult?.grr !== null && nrrResult?.grr !== undefined ? nrrResult.grr * 100 : null
 
-  // Lever title lookup: "${capKey}/${lever}" → title string
-  const allLeverDescById: Record<string, string> = {}
-  V2_ASSESSMENT_CONTENT.filter((c) => actionCaps.includes(c.key as ActionCapKey)).forEach((cap) => {
-    cap.levers.forEach((l) => { allLeverDescById[`${cap.key}/${l.lever}`] = l.title })
+  // Question title lookup: "${capKey}/${qId}" → title string
+  const allQuestionTitleById: Record<string, string> = {}
+  V3_ASSESSMENT_CONTENT.filter((c) => sections.includes(c.key as CapKey)).forEach((cap) => {
+    cap.questions.forEach((q) => { allQuestionTitleById[`${cap.key}/${q.id}`] = q.title })
   })
 
-  const pooledTop3 = getV2WeakestCells(actionCaps, picks).slice(0, 3)
+  const pooledTop3: WeakestCell[] = getWeakestCells(sections, picks).slice(0, 3)
 
   // ── Animation effect ────────────────────────────────────────────────────────
 
@@ -217,46 +178,27 @@ function Scorecard() {
 
   const buildPDFParams = useCallback((): PDFParams => {
     const capList: PDFCapabilityData[] = sections.map((capKey) => {
-      const cap = getCapability(capKey)!
-      const overall = getCapabilityOverall(capKey, picks)
-
-      if (cap.type === 'measurement') {
-        const mCap = cap as MeasurementCapability
-        const weakest = getThreeWeakestLevers(capKey, picks)
-          .filter((l) => l.score !== null)
-          .slice(0, 3)
-          .map((l) => ({ name: l.name, score: l.score }))
-        return {
-          key: capKey,
-          name: cap.name,
-          type: 'measurement',
-          overall,
-          measurementRows: mCap.levers.map((l) => {
-            const score = picks.measurement[l.id] ?? null
-            return { id: l.id, name: l.name, score, gapToL5: score !== null ? 5 - score : null }
-          }),
-          weakestLevers: weakest,
-        }
-      }
-
-      const capContent = V2_ASSESSMENT_CONTENT.find((c) => c.key === capKey)
+      const capContent = V3_ASSESSMENT_CONTENT.find((c) => c.key === capKey)!
+      const overall = getCapabilityScore(capKey, picks)
       return {
         key: capKey,
-        name: cap.name,
-        type: 'action',
-        overall,
-        v2LeverScores: V2_LEVERS.map((lever) => {
-          const score = getV2CellScore(capKey as ActionCapKey, lever, picks)
+        name: capContent.name,
+        score: overall,
+        stage: getMaturityStage(overall),
+        questions: capContent.questions.map((q) => {
+          const score = getCellScore(capKey, q.id, picks)
+          const scenarioIdx = picks[capKey][q.id]
+          const pickedText = scenarioIdx !== null && scenarioIdx !== undefined
+            ? (q.scenarios[scenarioIdx as number]?.text ?? null)
+            : null
           return {
-            lever,
-            title: capContent?.levers.find((l) => l.lever === lever)?.title ?? lever,
+            qId: q.id,
+            title: q.title,
             score,
+            pickedText,
             gapToL5: score !== null ? 5 - score : null,
           }
         }),
-        weakestLevers: getV2WeakestCells([capKey as ActionCapKey], picks)
-          .slice(0, 3)
-          .map((c) => ({ name: c.lever, score: c.score })),
       }
     })
 
@@ -267,17 +209,16 @@ function Scorecard() {
       grr: nrrResult?.grr ?? null,
       netMovementDollars: nrrResult?.netMovementDollars ?? null,
       netMovementPct: nrrResult?.netMovementPct ?? null,
-      reportingMaturity: hasMeasurement ? getMeasurementOverall(picks.measurement) : null,
+      reportingMaturity: reportingScore,
       overallIntelligence,
       distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
       capabilities: capList,
-      actionCapNames: actionCaps.map((k) => getCapability(k)?.name ?? k),
       recommendationSentences: recSentences,
       ctaText: cta.text,
       ctaUrl: cta.url,
       diagnosticAnswers: state.diagnosticAnswers,
     }
-  }, [state, picks, sections, actionCaps, hasMeasurement, overallIntelligence, nrrResult, recSentences, cta])
+  }, [state, picks, sections, reportingScore, overallIntelligence, nrrResult, recSentences, cta])
 
   // ── Completion trigger ──────────────────────────────────────────────────────
 
@@ -293,21 +234,25 @@ function Scorecard() {
       props: {
         capabilities_selected: sections,
         overall_intelligence: overallIntelligence,
-        weakest_capability: weakestLeverName,
+        weakest_capability: weakestCap,
       },
     })
+
+    const weakestCapName = weakestCap
+      ? (V3_ASSESSMENT_CONTENT.find((c) => c.key === weakestCap)?.name ?? null)
+      : null
 
     const scorecardPayload: ScorecardPayload = {
       overallIntelligence,
       nrr: nrrResult?.nrr ?? null,
       grr: nrrResult?.grr ?? null,
-      reportingMaturity: hasMeasurement ? getMeasurementOverall(picks.measurement) : null,
+      reportingMaturity: reportingScore,
       distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
-      weakestCapability: weakestCap ? (getCapability(weakestCap)?.name ?? null) : null,
+      weakestCapability: weakestCapName,
       capabilitiesSelected: sections,
       scope: deriveScorecardScope(sections),
       capabilityOveralls: Object.fromEntries(
-        sections.map((k) => [k, getCapabilityOverall(k, picks)]),
+        sections.map((k) => [k, getCapabilityScore(k, picks)]),
       ),
       recommendationSentences: recSentences,
     }
@@ -323,48 +268,29 @@ function Scorecard() {
       overallIntelligence,
       distanceToL5: scorecardPayload.distanceToL5,
       capabilities: sections.map((capKey) => {
-        const cap = getCapability(capKey)!
-        const overall = getCapabilityOverall(capKey, picks)
-
-        if (cap.type === 'measurement') {
-          const mCap = cap as MeasurementCapability
-          const weakest = getThreeWeakestLevers(capKey, picks)
-            .filter((l) => l.score !== null)
-            .slice(0, 3)
-            .map((l) => ({ name: l.name, score: l.score }))
-          return {
-            key: capKey,
-            name: cap.name,
-            type: 'measurement' as const,
-            overall,
-            measurementRows: mCap.levers.map((l) => {
-              const score = picks.measurement[l.id] ?? null
-              return { id: l.id, name: l.name, score, gapToL5: score !== null ? 5 - score : null }
-            }),
-            weakestLevers: weakest,
-          }
-        }
-        const capContent = V2_ASSESSMENT_CONTENT.find((c) => c.key === capKey)
+        const capContent = V3_ASSESSMENT_CONTENT.find((c) => c.key === capKey)!
+        const overall = getCapabilityScore(capKey, picks)
         return {
           key: capKey,
-          name: cap.name,
-          type: 'action' as const,
-          overall,
-          v2LeverScores: V2_LEVERS.map((lever) => {
-            const score = getV2CellScore(capKey as ActionCapKey, lever, picks)
+          name: capContent.name,
+          score: overall,
+          stage: getMaturityStage(overall),
+          questions: capContent.questions.map((q) => {
+            const score = getCellScore(capKey, q.id, picks)
+            const scenarioIdx = picks[capKey][q.id]
+            const pickedText = scenarioIdx !== null && scenarioIdx !== undefined
+              ? (q.scenarios[scenarioIdx as number]?.text ?? null)
+              : null
             return {
-              lever,
-              title: capContent?.levers.find((l) => l.lever === lever)?.title ?? lever,
+              qId: q.id,
+              title: q.title,
               score,
+              pickedText,
               gapToL5: score !== null ? 5 - score : null,
             }
           }),
-          weakestLevers: getV2WeakestCells([capKey as ActionCapKey], picks)
-            .slice(0, 3)
-            .map((c) => ({ name: c.lever, score: c.score })),
         }
       }),
-      actionCapNames: actionCaps.map((k) => getCapability(k)?.name ?? k),
       recommendationSentences: recSentences,
       ctaText: cta.text,
       ctaUrl: cta.url,
@@ -487,18 +413,20 @@ function Scorecard() {
             subtitle="Retention before expansion"
             valueColor={grrPct !== null ? '#3D6090' : '#C2CAD3'}
           />
-          <KpiTile
-            label="Reporting Maturity"
-            value={reportingMaturity !== null ? `${(reportingMaturity * e).toFixed(2)}` : '—'}
-            valueSuffix={reportingMaturity !== null ? '/5' : undefined}
-            subtitle={reportingMaturity !== null ? 'Measurement capability' : 'Not yet measured'}
-            valueColor={reportingMaturity !== null ? '#3D6090' : '#C2CAD3'}
-          />
+          {hasReporting && (
+            <KpiTile
+              label="Reporting Maturity"
+              value={reportingScore !== null ? `${(reportingScore * e).toFixed(2)}` : '—'}
+              valueSuffix={reportingScore !== null ? '/5' : undefined}
+              subtitle={reportingScore !== null ? 'NRR Reporting capability' : 'Not yet measured'}
+              valueColor={reportingScore !== null ? '#3D6090' : '#C2CAD3'}
+            />
+          )}
           <KpiTile
             label="Overall Intelligence"
             value={overallIntelligence !== null ? `${(overallIntelligence * e).toFixed(2)}` : '—'}
             valueSuffix={overallIntelligence !== null ? '/5' : undefined}
-            subtitle={overallIntelligence !== null ? getV2MaturityStage(overallIntelligence) : 'No action capabilities'}
+            subtitle={overallIntelligence !== null ? getMaturityStage(overallIntelligence) : 'No capabilities assessed'}
             valueColor={overallIntelligence !== null ? '#3D6090' : '#C2CAD3'}
           />
           <KpiTile
@@ -528,122 +456,35 @@ function Scorecard() {
           />
         </div>
 
-        {/* Capability overview rows (accordion) */}
+        {/* Capability summary (accordion) */}
         {sections.length > 0 && (
-          <div data-reveal="caps" style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {sections.map((capKey) => {
-              const cap = getCapability(capKey)
-              const overall = getCapabilityOverall(capKey, picks)
-              const isExpanded = expandedCapId === capKey
-              const isHov = hoverCapId === capKey
-              const desc = CAP_DESCRIPTIONS[capKey]
-
-              function handleCapClick() {
-                setExpandedCapId(isExpanded ? null : capKey)
-                if (capKey !== 'measurement') setSelLeverId(null)
-              }
-
-              return (
-                <div key={capKey}>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={handleCapClick}
-                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') handleCapClick() }}
-                    onMouseEnter={() => setHoverCapId(capKey)}
-                    onMouseLeave={() => setHoverCapId(null)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16,
-                      padding: '14px 20px',
-                      background: isExpanded ? 'rgba(61,96,144,.05)' : (isHov ? '#F8FAFC' : '#FFFFFF'),
-                      border: '1px solid #E3E8EE',
-                      borderRadius: isExpanded ? '12px 12px 0 0' : 12,
-                      cursor: 'pointer',
-                      transition: 'background .15s',
-                      userSelect: 'none',
-                      outline: 'none',
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{cap?.name}</span>
-                    </div>
-                    <div style={{ width: 100, height: 6, borderRadius: 999, background: '#EEF1F4', flexShrink: 0, overflow: 'hidden' }}>
-                      {overall !== null && (
-                        <div style={{ width: `${overall / 5 * 100}%`, height: 6, borderRadius: 999, background: 'linear-gradient(90deg,#3D6090,#5B7A9E)' }} />
-                      )}
-                    </div>
-                    <svg
-                      width={16} height={16} viewBox="0 0 24 24" fill="none"
-                      stroke="#9AA7B3" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"
-                      style={{ flexShrink: 0, transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .22s ease' }}
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                    <span style={{ fontFamily: 'Georgia, serif', fontSize: 16, fontWeight: 700, color: overall !== null ? '#0E2B41' : '#C2CAD3', flexShrink: 0, minWidth: 44, textAlign: 'right' }}>
-                      {overall !== null ? overall.toFixed(2) : '—'}
-                    </span>
-                  </div>
-                  <div style={{ maxHeight: isExpanded ? 240 : 0, overflow: 'hidden', transition: 'max-height .25s ease' }}>
-                    <div style={{ background: '#F8FAFC', border: '1px solid #E3E8EE', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '16px 20px 20px' }}>
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: '#9AA7B3', marginBottom: 5 }}>What it is</div>
-                        <div style={{ fontSize: 14, color: '#243B52', lineHeight: 1.55 }}>{desc.whatItIs}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: '#9AA7B3', marginBottom: 5 }}>How it moves NRR</div>
-                        <div style={{ fontSize: 14, color: '#243B52', lineHeight: 1.55 }}>{desc.howItMovesNRR}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+          <div data-reveal="caps" style={{ ...cardStyle }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#0E2B41', margin: '0 0 16px' }}>
+              Capability Summary
+            </h2>
+            <CapabilitySummary picks={picks} selectedCaps={sections} />
           </div>
         )}
 
-        {/* Capability matrix — all selected action caps */}
-        {actionCaps.length > 0 && (
-          <div data-reveal="matrix" style={{ ...cardStyle, marginTop: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#0E2B41', margin: 0 }}>
-                Capability Matrix
-              </h2>
-              {/* Legend */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#9AA7B3' }}>Low</span>
-                <div style={{ display: 'flex', gap: 3 }}>
-                  {[1, 2, 3, 4, 5].map((v) => {
-                    const ramp: Record<number, string> = { 1: '#EAEEF3', 2: '#D2DBE4', 3: '#AABBCC', 4: '#6E8AA6', 5: '#3E5C7C' }
-                    return <div key={v} style={{ width: 16, height: 10, borderRadius: 2, background: ramp[v] }} />
-                  })}
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#9AA7B3' }}>Strong</span>
-              </div>
-            </div>
-            <CapabilityMatrix picks={picks} selectedCaps={actionCaps} />
-          </div>
-        )}
-
-        {/* Top 3 levers — pooled across ALL selected action caps */}
+        {/* Top 3 questions — pooled across all selected caps */}
         {pooledTop3.length > 0 && (
           <div data-reveal="top" style={{ marginTop: 26 }}>
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#6B7B89', marginBottom: 14 }}>
-              3 highest-impact levers to address
+              3 highest-impact areas to address
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
               {pooledTop3.map((lv, k) => {
-                const cellKey = `${lv.capKey}/${lv.lever}`
-                const isSel = selLeverId === cellKey
-                const capName = getCapability(lv.capKey)?.name ?? lv.capKey
+                const cellKey = `${lv.capKey}/${lv.qId}`
+                const isSel = selCellId === cellKey
+                const capContent = V3_ASSESSMENT_CONTENT.find((c) => c.key === lv.capKey)
+                const capDisplayName = capContent?.name ?? lv.capKey
                 return (
                   <div
                     key={cellKey}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setSelLeverId(isSel ? null : cellKey)}
-                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setSelLeverId(isSel ? null : cellKey) }}
+                    onClick={() => setSelCellId(isSel ? null : cellKey)}
+                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setSelCellId(isSel ? null : cellKey) }}
                     onMouseEnter={(ev) => { ev.currentTarget.style.transform = 'translateY(-3px)' }}
                     onMouseLeave={(ev) => { ev.currentTarget.style.transform = 'none' }}
                     style={{
@@ -663,8 +504,8 @@ function Scorecard() {
                   >
                     <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#C2CAD3' }}>{k + 1}</div>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{allLeverDescById[cellKey] ?? lv.lever}</div>
-                      <div style={{ fontSize: 12, color: '#AEB8C2', marginTop: 2 }}>{capName}</div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: '#243B52' }}>{allQuestionTitleById[cellKey] ?? lv.qId}</div>
+                      <div style={{ fontSize: 12, color: '#AEB8C2', marginTop: 2 }}>{capDisplayName}</div>
                     </div>
                     <span style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, color: cellFg(lv.score), background: cellBg(lv.score), padding: '5px 14px', borderRadius: 8 }}>
                       {lv.score}
@@ -676,23 +517,6 @@ function Scorecard() {
                 )
               })}
             </div>
-          </div>
-        )}
-
-        {/* Measurement section */}
-        {hasMeasurement && (
-          <div style={{ marginTop: 36 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#0E2B41', margin: 0 }}>
-                {getCapability('measurement')?.name ?? 'NRR Reporting'}
-              </h2>
-              {reportingMaturity !== null && (
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#3D6090', background: '#EAEFF5', padding: '4px 12px', borderRadius: 999 }}>
-                  {reportingMaturity.toFixed(2)} / 5
-                </span>
-              )}
-            </div>
-            <MeasurementHeatmap picks={state.picks.measurement} />
           </div>
         )}
 

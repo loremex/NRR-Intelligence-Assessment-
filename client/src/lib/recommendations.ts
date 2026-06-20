@@ -1,13 +1,11 @@
-import { getCapability } from './rubric'
-import type { ActionCapKey, CapKey } from './state'
+import type { CapKey } from './state'
 import {
-  getV2CapabilityOverall,
-  getMeasurementOverall,
+  getCapabilityScore,
   getOverallIntelligence,
-  getV2WeakestCells,
-  getThreeWeakestLevers,
+  getWeakestCells,
   type AllPicks,
 } from './scoring'
+import { V3_ASSESSMENT_CONTENT } from '../content/assessmentContent'
 
 const CTA_URL = (import.meta.env.VITE_CALENDLY_URL as string | undefined) ?? 'https://calendly.com/loremex/intro'
 const CTA_TEXT = 'Loremex helps PE-backed SaaS leaders move from L3 to L5 across these capabilities.'
@@ -21,33 +19,34 @@ function fmt(n: number | null): string {
   return n !== null ? n.toFixed(2) : '—'
 }
 
-function patternC(measOverall: number, weakestMName: string): string[] {
+function capName(capKey: CapKey): string {
+  return V3_ASSESSMENT_CONTENT.find((c) => c.key === capKey)?.name ?? capKey
+}
+
+function patternC(reportingScore: number, weakestQTitle: string): string[] {
   return [
-    `Your NRR Reporting maturity is ${fmt(measOverall)}/5. Before investing heavily in action capabilities, address ${weakestMName} — without reliable measurement, you can't tell whether your action investments are working.`,
+    `Your NRR Reporting maturity is ${fmt(reportingScore)}/5. Before investing heavily in action capabilities, address ${weakestQTitle} — without reliable measurement, you can't tell whether your action investments are working.`,
   ]
 }
 
-function patternA(capName: string, capOverall: number, leverNames: string[]): string[] {
-  const leversStr = leverNames.length > 0 ? leverNames.join(', ') : 'your highest-weight levers'
+function patternA(wCapName: string, wCapScore: number, questionTitles: string[]): string[] {
+  const qs = questionTitles.length > 0 ? questionTitles.join(', ') : 'your lowest-scoring areas'
   return [
-    `Your weakest action capability is ${capName} with overall maturity at ${fmt(capOverall)}/5.`,
-    `The three highest-impact levers to address are ${leversStr} — investment here will have the most direct effect on your NRR trajectory.`,
+    `Your weakest capability is ${wCapName} with overall maturity at ${fmt(wCapScore)}/5.`,
+    `The three highest-impact areas to address are ${qs} — investment here will have the most direct effect on your NRR trajectory.`,
   ]
 }
 
-function patternF(
-  pricingOverall: number,
-  otherCaps: Array<{ name: string; overall: number }>,
-): string[] {
-  const others = otherCaps.map((c) => `${c.name} (${fmt(c.overall)})`).join(' and ')
+function patternF(pricingScore: number, otherCaps: Array<{ name: string; score: number }>): string[] {
+  const others = otherCaps.map((c) => `${c.name} (${fmt(c.score)})`).join(' and ')
   return [
-    `Your Pricing Optimization scores ${fmt(pricingOverall)}/5, lower than your ${others}. Pricing is the silent NRR killer — even strong retention and expansion can be undermined by pricing leakage.`,
+    `Your Pricing Optimization scores ${fmt(pricingScore)}/5, lower than your ${others}. Pricing is the silent NRR killer — even strong retention and expansion can be undermined by pricing leakage.`,
   ]
 }
 
-function patternD(overallIntelligence: number, strongestCapName: string, strongestScore: number): string[] {
+function patternD(overallScore: number, strongestName: string, strongestScore: number): string[] {
   return [
-    `Your Overall Intelligence is ${fmt(overallIntelligence)}/5, ahead of most B2B SaaS at your stage. The growth opportunity is the L4–L5 transition: ${strongestCapName} is strongest at ${fmt(strongestScore)}, and the next move is from accountability to prediction.`,
+    `Your Overall Intelligence is ${fmt(overallScore)}/5, ahead of most B2B SaaS at your stage. The growth opportunity is the L4–L5 transition: ${strongestName} is strongest at ${fmt(strongestScore)}, and the next move is from accountability to prediction.`,
   ]
 }
 
@@ -55,104 +54,68 @@ export function composeRecommendation(
   selectedCapabilities: CapKey[],
   picks: AllPicks,
 ): RecommendationResult {
-  const selectedActionCaps = selectedCapabilities.filter((k): k is ActionCapKey => k !== 'measurement')
-  const hasMeasurement = selectedCapabilities.includes('measurement')
-
-  if (selectedActionCaps.length === 0 && hasMeasurement) {
-    const measOverall = getMeasurementOverall(picks.measurement)
-    const weakest = getThreeWeakestLevers('measurement', picks)[0]
-    const scoreStr = fmt(measOverall)
-    const weakestName = weakest?.name ?? 'measurement quality'
-    return {
-      sentences: [
-        `Your NRR Reporting maturity is ${scoreStr}/5; the weakest category is ${weakestName}. Strengthening this is the foundation for any future action capability investment.`,
-      ],
-      cta: { text: CTA_TEXT, url: CTA_URL },
-    }
-  }
-
-  if (selectedActionCaps.length === 0) {
+  if (selectedCapabilities.length === 0) {
     return { sentences: [], cta: { text: CTA_TEXT, url: CTA_URL } }
   }
 
-  const actionOveralls = Object.fromEntries(
-    selectedActionCaps.map((k) => [k, getV2CapabilityOverall(k, picks)]),
-  ) as Record<ActionCapKey, number | null>
+  const capScores = Object.fromEntries(
+    selectedCapabilities.map((k) => [k, getCapabilityScore(k, picks)]),
+  ) as Record<CapKey, number | null>
 
-  const overallIntelligence = getOverallIntelligence(selectedActionCaps, picks)
-  const measOverall = hasMeasurement ? getMeasurementOverall(picks.measurement) : null
+  const overallScore = getOverallIntelligence(selectedCapabilities, picks)
+  const hasReporting = selectedCapabilities.includes('reporting')
 
   type PatternEntry = { priority: number; sentences: string[] }
   const eligible: PatternEntry[] = []
 
-  // Pattern C
-  if (hasMeasurement && measOverall !== null && measOverall < 3.0) {
-    const weakestM = getThreeWeakestLevers('measurement', picks)[0]
-    eligible.push({ priority: 1, sentences: patternC(measOverall, weakestM?.name ?? 'measurement quality') })
+  // Pattern C — reporting gap
+  if (hasReporting && capScores['reporting'] !== null && capScores['reporting'] < 3.0) {
+    const weakestReportingCell = getWeakestCells(['reporting'], picks)[0]
+    const cap = V3_ASSESSMENT_CONTENT.find((c) => c.key === 'reporting')
+    const qTitle = cap?.questions.find((q) => q.id === weakestReportingCell?.qId)?.title ?? 'measurement quality'
+    eligible.push({ priority: 1, sentences: patternC(capScores['reporting'], qTitle) })
   }
 
-  // Pattern A — always fires if >=1 action cap
-  const capsWithScores = selectedActionCaps
-    .map((k) => ({ key: k, overall: actionOveralls[k] }))
-    .filter((c): c is { key: ActionCapKey; overall: number } => c.overall !== null)
-  const weakestCapEntry = capsWithScores.reduce(
-    (min, c) => (c.overall < min.overall ? c : min),
-    capsWithScores[0] ?? { key: selectedActionCaps[0], overall: 0 },
-  )
-  const weakestCapInfo = getCapability(weakestCapEntry.key)!
-  const weakestCells = getV2WeakestCells([weakestCapEntry.key], picks).slice(0, 3)
-  const leverLabels: Record<string, string> = {
-    impact: 'Impact',
-    whitespace: 'Whitespace',
-    accountability: 'Accountability',
-    playbook: 'Playbook',
-    execution: 'Execution',
-    governance: 'Governance',
-  }
-  eligible.push({
-    priority: 3,
-    sentences: patternA(
-      weakestCapInfo.name,
-      weakestCapEntry.overall,
-      weakestCells.map((c) => leverLabels[c.lever] ?? c.lever),
-    ),
-  })
+  // Pattern A — weakest capability
+  const capsWithScores = selectedCapabilities
+    .map((k) => ({ key: k, score: capScores[k] }))
+    .filter((c): c is { key: CapKey; score: number } => c.score !== null)
 
-  // Pattern F
-  if (selectedCapabilities.includes('pricing') && selectedActionCaps.length >= 2) {
-    const pricingOverall = actionOveralls['pricing']
-    const otherCaps = selectedActionCaps.filter((k) => k !== 'pricing')
-    const otherWithScores = otherCaps
-      .filter((k) => actionOveralls[k] !== null)
-      .map((k) => ({ name: getCapability(k)!.name, overall: actionOveralls[k]! }))
-    if (pricingOverall !== null && otherWithScores.length > 0) {
-      const otherAvg = otherWithScores.reduce((s, c) => s + c.overall, 0) / otherWithScores.length
-      if (pricingOverall < otherAvg - 0.5) {
-        eligible.push({ priority: 4, sentences: patternF(pricingOverall, otherWithScores) })
+  if (capsWithScores.length > 0) {
+    const weakest = capsWithScores.reduce((min, c) => (c.score < min.score ? c : min))
+    const weakestCells = getWeakestCells([weakest.key], picks).slice(0, 3)
+    const cap = V3_ASSESSMENT_CONTENT.find((c) => c.key === weakest.key)
+    const qTitles = weakestCells.map((cell) => {
+      return cap?.questions.find((q) => q.id === cell.qId)?.title ?? cell.qId
+    })
+    eligible.push({ priority: 3, sentences: patternA(capName(weakest.key), weakest.score, qTitles) })
+  }
+
+  // Pattern F — pricing gap
+  if (selectedCapabilities.includes('pricing') && selectedCapabilities.length >= 2) {
+    const pricingScore = capScores['pricing']
+    const others = selectedCapabilities
+      .filter((k) => k !== 'pricing' && capScores[k] !== null)
+      .map((k) => ({ name: capName(k), score: capScores[k]! }))
+    if (pricingScore !== null && others.length > 0) {
+      const otherAvg = others.reduce((s, c) => s + c.score, 0) / others.length
+      if (pricingScore < otherAvg - 0.5) {
+        eligible.push({ priority: 4, sentences: patternF(pricingScore, others) })
       }
     }
   }
 
-  // Pattern D
-  if (overallIntelligence !== null && overallIntelligence > 3.5) {
-    const strongest = capsWithScores.reduce(
-      (max, c) => (c.overall > max.overall ? c : max),
-      capsWithScores[0] ?? { key: selectedActionCaps[0], overall: 0 },
-    )
-    const strongestCap = getCapability(strongest.key)!
-    eligible.push({
-      priority: 6,
-      sentences: patternD(overallIntelligence, strongestCap.name, strongest.overall),
-    })
+  // Pattern D — strong baseline
+  if (overallScore !== null && overallScore > 3.5 && capsWithScores.length > 0) {
+    const strongest = capsWithScores.reduce((max, c) => (c.score > max.score ? c : max))
+    eligible.push({ priority: 6, sentences: patternD(overallScore, capName(strongest.key), strongest.score) })
   }
 
   eligible.sort((a, b) => a.priority - b.priority)
 
   const sentences: string[] = []
-  const MAX_PATTERN_SENTENCES = 3
-
   for (const entry of eligible) {
-    if (sentences.length + entry.sentences.length <= MAX_PATTERN_SENTENCES) {
+    if (sentences.length + entry.sentences.length <= 3) {
       sentences.push(...entry.sentences)
     }
   }

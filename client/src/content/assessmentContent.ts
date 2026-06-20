@@ -1,108 +1,120 @@
-import type { V2LeverKey } from '../lib/scoring'
+import type { CapKey } from '../lib/state'
 
-export const V2_LEVERS = ['impact', 'whitespace', 'accountability', 'playbook', 'execution', 'governance'] as const
+export const CAP_ORDER: CapKey[] = ['reporting', 'retention', 'expansion', 'pricing']
 
-export const V2_LEVER_LABELS: Record<V2LeverKey, string> = {
-  impact: 'Impact intelligence',
-  whitespace: 'Whitespace intelligence',
-  accountability: 'Accountability intelligence',
-  playbook: 'Playbook intelligence',
-  execution: 'Execution intelligence',
-  governance: 'Governance intelligence',
-}
-
-export interface V2Scenario {
+export interface V3Scenario {
   text: string
 }
 
-export interface V2LeverContent {
-  lever: V2LeverKey
+export interface V3QuestionContent {
+  id: 'q1' | 'q2' | 'q3'
   title: string
   question: string
-  scenarios: [V2Scenario, V2Scenario, V2Scenario, V2Scenario, V2Scenario]
+  scenarios: [V3Scenario, V3Scenario, V3Scenario, V3Scenario, V3Scenario]
 }
 
-export interface V2CapabilityContent {
-  key: 'retention' | 'expansion' | 'pricing'
+export interface V3CapabilityContent {
+  key: CapKey
   name: string
-  levers: [V2LeverContent, V2LeverContent, V2LeverContent, V2LeverContent, V2LeverContent, V2LeverContent]
+  estimatedMinutes: number
+  intro: {
+    foundation: string
+    aiNative: string
+  }
+  questions: [V3QuestionContent, V3QuestionContent, V3QuestionContent]
 }
 
-export const V2_ASSESSMENT_CONTENT: V2CapabilityContent[] = [
+export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
+  {
+    key: 'reporting',
+    name: 'NRR Reporting',
+    estimatedMinutes: 3,
+    intro: {
+      foundation: "Your NRR is only as good as your ability to trust it, break it apart, and see it now. Most companies treat it as a quarterly finance output — one blended figure, assembled after the close, quietly disputed between teams.",
+      aiNative: "NRR stops being a number you produce once a quarter and becomes one you operate on continuously — current, decomposable to its drivers, and the same everywhere. You're no longer reporting the past; you're steering on the present.",
+    },
+    questions: [
+      {
+        id: 'q1',
+        title: 'Truth and confidence',
+        question: "If the board asked for your NRR right now, how confident are you it's correct — that it would survive an audit, and that two teams pulling it would land on the same number?",
+        scenarios: [
+          { text: "We'd produce a number, but it's assembled and caveated. Different teams would likely get different figures." },
+          { text: "We have a number we report, but we know it papers over definitional gaps and source disagreements." },
+          { text: "The number is solid and reconciled, but getting there takes manual assembly each time." },
+          { text: "NRR is consistently calculated from agreed definitions and sources — the same number everywhere, on demand." },
+          { text: "NRR is continuously computed from a single source of truth — always current, always reconciled, never in dispute." },
+        ],
+      },
+      {
+        id: 'q2',
+        title: 'Decomposition',
+        question: "Can you break NRR into its real drivers — new, expansion, contraction, churn — across product, segment, and cohort? Or is it one blended company-level number?",
+        scenarios: [
+          { text: "We have a top-line NRR. Breaking it into drivers isn't something we can readily do." },
+          { text: "We can split it into the basic components, but cutting by product, segment, or cohort is a heavy lift." },
+          { text: "We can decompose it across most dimensions, but only by pulling and assembling it manually." },
+          { text: "NRR decomposes on demand — by driver and by any cut — so we can see exactly what's moving the number." },
+          { text: "The full decomposition is live and self-updating, so the drivers behind every movement are always visible the moment they shift." },
+        ],
+      },
+      {
+        id: 'q3',
+        title: 'Liveness',
+        question: "Is your NRR a current signal you can see and act on today — or a backward-looking figure you assemble after the quarter closes?",
+        scenarios: [
+          { text: "We see NRR after the quarter closes. It describes what already happened." },
+          { text: "We get it monthly or so, but it lags — by the time we act, the picture has moved." },
+          { text: "We can pull a current view when we need it, but it's a manual exercise, not a standing signal." },
+          { text: "NRR is available live and watched continuously, so we're acting on where it is now, not where it was." },
+          { text: "NRR is a continuous, predictive signal — we see where it's heading and act before the number moves, not after." },
+        ],
+      },
+    ],
+  },
   {
     key: 'retention',
     name: 'Revenue Retention',
-    levers: [
+    estimatedMinutes: 3,
+    intro: {
+      foundation: "Customers stay when impact clearly outweighs price — and the gap keeps widening. Save plays and health scores just protect that truth after the fact.",
+      aiNative: "This used to be invisible — inferred from usage, reviewed quarterly. Now time-to-impact, compounding, and value-vs-price can be sensed per account, continuously, and corrected before drift shows. Retention stops being a save motion and becomes a condition you hold automatically.",
+    },
+    questions: [
       {
-        lever: 'impact',
-        title: 'Impact intelligence',
-        question: 'Can your team show, right now, the quantified value each customer is getting from you — or do you only know at QBR time, in slides, after the fact?',
+        id: 'q1',
+        title: 'Time to impact',
+        question: "How quickly does a new customer reach the point where what they're getting clearly outweighs what they're paying — and do you actually know that moment per customer?",
         scenarios: [
-          { text: "We don't really measure this. If the customer is happy and using the product, we assume value is there." },
-          { text: 'CSMs know it qualitatively for their top customers, from conversations. Nothing systematic.' },
-          { text: 'We capture impact at QBRs and renewals. It lives in slides — backward-looking, not continuous.' },
-          { text: 'Realized value is tracked per customer in a system. Reviewed monthly, used in renewal forecasting.' },
-          { text: 'Value signals are continuous and predictive. We know if a customer is silently losing faith before they do.' },
+          { text: "We don't think about it that way. We assume value builds over time and check in at renewal." },
+          { text: 'We have a rough sense of onboarding speed, but "time to impact" isn\'t something we measure.' },
+          { text: "We measure time-to-value, but we see it after the fact — in retrospect, customer by customer." },
+          { text: "Time-to-impact is tracked as it happens, and a slow start triggers action before it becomes risk." },
+          { text: "Time-to-impact is monitored continuously and optimized — the system flags and corrects a slow ramp before anyone asks." },
         ],
       },
       {
-        lever: 'whitespace',
-        title: 'Whitespace intelligence',
-        question: 'If a customer was going to churn in the next two quarters, would your system tell you — or would you find out from the customer?',
+        id: 'q2',
+        title: 'Impact compounding',
+        question: "Over the life of a customer, does the impact you deliver keep growing — or does it flatten after the first year? And can you see which is happening, per account?",
         scenarios: [
-          { text: "We find out when the customer tells us. We don't have a system for spotting churn risk early." },
-          { text: 'We catch it from soft signals — CSM gut, a missed meeting, a support pattern. Often too late.' },
-          { text: 'Quarterly risk review surfaces big risks. Smaller patterns slip through.' },
-          { text: 'Health scores and risk signals live in the CRM. The team reviews them weekly and escalates.' },
-          { text: 'Risk fires automatically from leading indicators across product, support, and stakeholder data. We act before the customer feels it.' },
+          { text: "We assume mature customers are getting steady value. We don't track whether impact is still growing." },
+          { text: "We sense some accounts plateau, but it's anecdotal — usually obvious only once they're at risk." },
+          { text: "We can show whether impact is growing or flat per account, but only by pulling and reviewing it." },
+          { text: "Compounding (or flattening) impact surfaces on its own, and flat accounts get acted on early." },
+          { text: "Impact trajectory is tracked continuously per account; the system intervenes when compounding stalls, before the customer feels it." },
         ],
       },
       {
-        lever: 'accountability',
-        title: 'Accountability intelligence',
-        question: "Is retention something specific people in your org are measured, paid, and visibly accountable for — or is it everyone's job and no one's number?",
+        id: 'q3',
+        title: 'Price-to-value over time',
+        question: "As a customer matures and you raise price, does the value they get grow faster than the price — so the deal feels better to them every year, not worse?",
         scenarios: [
-          { text: "Retention isn't really in anyone's number. CS is \"responsible\" but nothing measurable hangs on it." },
-          { text: 'CS comp is tied to satisfaction, tenure, or coverage. Retention is implicit, not explicit.' },
-          { text: "CSMs have renewal targets, but they're soft. Most variable comp is elsewhere." },
-          { text: 'CSMs and CS leaders carry GRR and NRR targets, with clear bonus tied to retention outcomes.' },
-          { text: 'Retention is weighted across CS, Sales, and Product. Comp, dashboards, and operating reviews are all aligned to net retention.' },
-        ],
-      },
-      {
-        lever: 'playbook',
-        title: 'Playbook intelligence',
-        question: 'When a customer turns red, is there a real recovery plan with named owners and a timeline — or does it depend on whichever CSM happens to own them?',
-        scenarios: [
-          { text: "Honestly, we don't have a defined recovery motion. We hope, or we discount." },
-          { text: 'Depends on the CSM. They do what they can with what they have.' },
-          { text: 'We pull a recovery plan together for the biggest red customers. Quality is uneven across the team.' },
-          { text: 'Every red customer has a defined recovery plan — named owners, actions, review cadence.' },
-          { text: 'Recovery plans are templated, tracked with milestone status, and reviewed in operating cadence with learnings fed back into the system.' },
-        ],
-      },
-      {
-        lever: 'execution',
-        title: 'Execution intelligence',
-        question: 'When a retention risk fires — a red customer, a champion loss, a usage drop — how fast can your team actually mobilize and act on it?',
-        scenarios: [
-          { text: 'Slow. Weeks, or until something forces it to the top of the pile.' },
-          { text: 'It depends. Sometimes days, sometimes weeks. It moves when someone senior pushes.' },
-          { text: "We respond, but the path from signal to action is manual. There's a meeting, then a follow-up, then someone acts." },
-          { text: 'Signals route to defined owners with a target response window. Most fire within days, not weeks.' },
-          { text: 'Risk signals trigger named actions automatically, assigned and tracked. Response time is measured and improving.' },
-        ],
-      },
-      {
-        lever: 'governance',
-        title: 'Governance intelligence',
-        question: 'Is retention something you actively run in your operating rhythm — or does it only surface when something breaks?',
-        scenarios: [
-          { text: "It only surfaces when something breaks — a big churn, a board question. No regular cadence." },
-          { text: "It comes up when there's noise, otherwise it's CS's problem." },
-          { text: "Quarterly retention review. Numbers get reported but action items don't always follow through." },
-          { text: 'Monthly retention review with leadership. Risks, recoveries, and patterns tracked across the portfolio.' },
-          { text: 'Net retention is a top-line metric in every operating cadence, with clear owners, leading indicators, and learnings feeding back into how the team operates.' },
+          { text: "We raise price at renewal where we can. Whether value outpaced it isn't something we quantify." },
+          { text: "We believe value grows faster than price, but we can't show it — it's a story, not a number." },
+          { text: "We can reconstruct the value-to-price ratio per account, but only retrospectively at renewal time." },
+          { text: "The value-to-price ratio is visible as it moves, so we know which accounts are getting a worse deal before they push back." },
+          { text: "The ratio is monitored continuously and kept improving by design — price and delivered value stay correctly coupled without manual review." },
         ],
       },
     ],
@@ -110,77 +122,46 @@ export const V2_ASSESSMENT_CONTENT: V2CapabilityContent[] = [
   {
     key: 'expansion',
     name: 'Revenue Expansion',
-    levers: [
+    estimatedMinutes: 3,
+    intro: {
+      foundation: "Expansion is earned, not sold. It needs three things true at once: the account is healthy, it's already getting more than it pays for, and there's room left to grow. Push without them and you accelerate churn.",
+      aiNative: "Health used to be a gut call, surplus a story, whitespace whatever a rep spotted — so expansion got pushed on a quota clock. Now readiness is visible across the whole base, and expansion surfaces itself instead of being chased.",
+    },
+    questions: [
       {
-        lever: 'impact',
-        title: 'Impact intelligence',
-        question: "Before you walk into an expansion conversation, can you show the customer the quantified value they've already gotten — or are you asking them to buy more on faith?",
+        id: 'q1',
+        title: 'Expansion readiness',
+        question: "Before you pursue expansion in an account, do you actually know it's healthy — getting value, low-risk, on solid ground — or could you be selling more into an account that's quietly slipping?",
         scenarios: [
-          { text: "We don't really quantify it. We rely on the relationship and the customer's general sentiment." },
-          { text: "The rep or CSM puts together impact numbers when an expansion conversation comes up. It's anecdotal and uneven." },
-          { text: "We pull a value summary from QBR materials before an expansion ask. It's backward-looking and slide-based." },
-          { text: 'Realized value per customer is tracked continuously and used to frame every expansion conversation.' },
-          { text: 'The value story is live, quantified, and tied to the specific expansion ask — we walk in with proof, not pitch.' },
+          { text: "We pursue expansion where we see opportunity. Whether the account is truly healthy underneath isn't part of the decision." },
+          { text: "We have a general feel for which accounts are solid, but it's relationship-based, not something we verify before expanding." },
+          { text: "We can check an account's health before expanding, but it's a manual look — and not always done." },
+          { text: "Account health gates expansion automatically — we only push where the foundation is genuinely strong, and weak accounts get fixed first." },
+          { text: "Expansion readiness is continuously scored from real health signals, so we expand exactly the accounts that are ready and never the ones that aren't." },
         ],
       },
       {
-        lever: 'whitespace',
-        title: 'Whitespace intelligence',
-        question: 'If I asked you right now which customers have the most untapped expansion potential — and where — could your team tell me, with data?',
+        id: 'q2',
+        title: 'Value surplus',
+        question: "Is the customer already getting visibly more than they pay for — a surplus they can feel — so that more of what you do is obviously worth more to them?",
         scenarios: [
-          { text: "Not really. We know our biggest customers but not where the headroom is across the base." },
-          { text: "The reps know their own accounts. There's no portfolio-level view of whitespace." },
-          { text: 'We do whitespace exercises once or twice a year — usually for planning. The data goes stale fast.' },
-          { text: 'Whitespace is mapped per customer in our CRM — product gaps, seat gaps, tier gaps — and refreshed quarterly.' },
-          { text: 'Whitespace is live and signal-driven — we see opportunity emerge across the portfolio in real time.' },
+          { text: "We don't know if they're in surplus. We assume the value is there if they're not complaining." },
+          { text: "We believe most customers come out ahead, but we couldn't show the surplus or know who's actually underwater." },
+          { text: "We can establish whether a customer is in surplus, but only by working it out after the fact, account by account." },
+          { text: "The surplus (or deficit) is visible per account as it stands, so we know exactly who has room to expand and who doesn't." },
+          { text: "Surplus is tracked continuously and the customer sees it too — expansion conversations open from a gap they already feel." },
         ],
       },
       {
-        lever: 'accountability',
-        title: 'Accountability intelligence',
-        question: "Is expansion in a specific person's number — with comp, targets, and visibility — or does it just happen when it happens?",
+        id: 'q3',
+        title: 'Room to grow',
+        question: "For each customer, do you know specifically what they don't have yet that would deliver them more value — the products, capacity, or use cases they haven't bought — or is expansion just whatever a rep happens to spot?",
         scenarios: [
-          { text: "It just happens. Nobody owns it as a number. We celebrate it when it comes in." },
-          { text: "Sales or CS will pursue expansion when they see it, but it's not formally in their plan." },
-          { text: "Account managers have expansion targets, but they're soft and most of the comp is elsewhere." },
-          { text: 'AMs and CSMs carry explicit expansion targets with bonus tied to them. Quotas are set and tracked.' },
-          { text: 'Expansion is owned across Sales, CS, and Product with aligned comp, dashboards, and operating reviews.' },
-        ],
-      },
-      {
-        lever: 'playbook',
-        title: 'Playbook intelligence',
-        question: 'When an expansion opportunity surfaces — usage spike, new buyer, new use case — is there a defined motion to pursue it, or does it depend entirely on the rep?',
-        scenarios: [
-          { text: 'It depends on the rep. The best ones run their own playbook, the rest improvise.' },
-          { text: "We have some shared best practices, but they're tribal. Quality varies a lot." },
-          { text: 'We have documented motions for the main expansion types. Adoption is uneven across the team.' },
-          { text: 'Defined plays exist for each expansion type, tied to triggers, and most reps run them consistently.' },
-          { text: 'Plays are triggered automatically by signal, assigned to the right owner, and measured for win rate.' },
-        ],
-      },
-      {
-        lever: 'execution',
-        title: 'Execution intelligence',
-        question: 'Once an expansion play kicks off, how reliably does it get driven to a decision — with the right people, the right timing, and the right asks — instead of stalling?',
-        scenarios: [
-          { text: 'Plays often stall. They lose momentum once the initial enthusiasm fades.' },
-          { text: "It depends who's driving. Some reps push them through, others let them drift." },
-          { text: 'We track active expansion plays and review them, but slippage is common in the middle stages.' },
-          { text: 'Every active play has a defined cadence, named owner, and clear next-step accountability. Slippage is visible and addressed.' },
-          { text: 'Plays are tracked end-to-end with stage-by-stage measurement. Bottlenecks surface fast and feed back into the motion.' },
-        ],
-      },
-      {
-        lever: 'governance',
-        title: 'Governance intelligence',
-        question: 'Is expansion something you actively run in your operating rhythm — or does it surface mainly at renewal time, as an afterthought?',
-        scenarios: [
-          { text: "It surfaces at renewal, if at all. Otherwise we're focused on new logos and retention." },
-          { text: "Expansion gets reviewed in big-deal forecast calls but not as its own discipline." },
-          { text: 'Quarterly expansion review. Pipeline gets discussed, action items follow inconsistently.' },
-          { text: 'Monthly expansion review with leadership. Pipeline, conversion, and patterns tracked across the portfolio.' },
-          { text: 'Expansion is a top-line operating metric — pipeline, win rate, leading indicators — with learnings fed back into plays.' },
+          { text: "We don't map this. Expansion is whatever opportunity a rep notices in the moment." },
+          { text: "Reps know their own accounts' gaps, but there's no clear view across the base of what's unsold and where." },
+          { text: "We can work out what each account is missing, but it takes a manual exercise to map it." },
+          { text: "What each customer doesn't have yet — and what it's worth to them — is mapped per account and ready to act on." },
+          { text: "The unsold value in every account is surfaced continuously, so the next right expansion for each customer is always visible." },
         ],
       },
     ],
@@ -188,77 +169,46 @@ export const V2_ASSESSMENT_CONTENT: V2CapabilityContent[] = [
   {
     key: 'pricing',
     name: 'Pricing Optimization',
-    levers: [
+    estimatedMinutes: 3,
+    intro: {
+      foundation: "Price is right only when it tracks both what it costs you to deliver and the impact the customer gets. Most pricing tracks neither — set once, frozen till renewal, leaking margin or value the whole time.",
+      aiNative: "Cost-to-deliver now moves underneath you, and delivered impact can finally be measured live. So both gaps can be caught as they open. Pricing stops being a number you defend and becomes an engine that re-optimizes as cost and value move.",
+    },
+    questions: [
       {
-        lever: 'impact',
-        title: 'Impact intelligence',
-        question: "Before you propose a price increase or new pricing structure to a customer, can you show them the quantified value they've gotten — or is the conversation mostly about cost and market rates?",
+        id: 'q1',
+        title: 'Cost-to-deliver responsiveness',
+        question: "As the cost to deliver your solution changes — compute, infrastructure, the economics of running it — does your pricing adjust to protect unit economics, or is price set independently of what it actually costs you to deliver?",
         scenarios: [
-          { text: "We don't anchor pricing to value delivered. Conversations default to market benchmarks and customer pushback." },
-          { text: "The rep or CSM puts together value numbers when a pricing conversation comes up. It's anecdotal." },
-          { text: 'We pull value data from QBR materials before a renewal pricing conversation. Backward-looking, slide-based.' },
-          { text: 'Realized value per customer is tracked continuously and used to frame every pricing conversation.' },
-          { text: 'Pricing conversations open with a quantified value story tied to outcomes — we ask for more because we can prove more.' },
+          { text: "Price is set without much reference to delivery cost. If our cost to serve moves, pricing doesn't respond." },
+          { text: "We know our delivery costs shift, but pricing only catches up occasionally, well after the fact." },
+          { text: "We can analyze cost-to-deliver against price per segment, but it's a periodic review, not built into how we price." },
+          { text: "Pricing reflects current cost-to-deliver, so margin is protected as delivery economics move." },
+          { text: "The pricing engine re-optimizes automatically as cost-to-deliver changes — unit economics stay healthy without anyone resetting the model." },
         ],
       },
       {
-        lever: 'whitespace',
-        title: 'Whitespace intelligence',
-        question: "If I asked you which customers are underpriced relative to the value they're getting — and by how much — could your team tell me, with data?",
+        id: 'q2',
+        title: 'Price-to-impact correlation',
+        question: "Is what a customer pays tied to the impact they receive and kept aligned as that impact shifts — or is it tied to seats, cost-plus, or whatever the market will bear, and left until renewal?",
         scenarios: [
-          { text: "Not really. We know list price vs. what we charge, but not value vs. price by customer." },
-          { text: "Reps have a gut feel for which customers are getting a deal. There's no portfolio-level view." },
-          { text: 'We do pricing reviews once or twice a year and flag underpriced customers for renewal. Data goes stale fast.' },
-          { text: 'Underpricing is tracked per customer — value delivered vs. price paid — and refreshed quarterly. Reps see it before renewal.' },
-          { text: 'Value-to-price gap is live across the portfolio, signals fire when customers drift into underpriced territory.' },
+          { text: "Price is set by seats, tiers, or market rates. It isn't connected to the impact a given customer actually gets, and it holds until the next renewal." },
+          { text: "We'd like price to reflect value, but in practice it tracks packaging and negotiation — and we only revisit it when a deal comes up." },
+          { text: "We can see whether price and impact are aligned per customer, but only when we go looking — it's a periodic, manual check." },
+          { text: "Price is set against delivered impact and the gap surfaces as it opens, so over- and under-priced customers are visible as the relationship runs." },
+          { text: "Unit price is mechanically coupled to a unit of impact and stays correlated continuously — price reflects what the customer actually gets, by design." },
         ],
       },
       {
-        lever: 'accountability',
-        title: 'Accountability intelligence',
-        question: "Is pricing — price realization, discount discipline, renewal uplift — in a specific person's number? Or is it everyone's responsibility and no one's metric?",
+        id: 'q3',
+        title: 'Renewal lock-in',
+        question: "At renewal, do you reset price to match the impact you're now delivering — capturing the value gap that's opened up — or does the old price mostly roll forward?",
         scenarios: [
-          { text: "Pricing isn't really in anyone's number. We track ARR but not price realization or discount erosion." },
-          { text: "Finance watches it, but it's not in Sales or CS comp. Pricing slippage is reported, not owned." },
-          { text: 'Sales has a discount-cap policy but enforcement is uneven. Renewal uplift is a soft target.' },
-          { text: 'Sales and CS leaders carry explicit targets on price realization and renewal uplift, with comp tied to it.' },
-          { text: 'Pricing outcomes are owned across Sales, CS, RevOps, and Finance with aligned comp, dashboards, and operating reviews.' },
-        ],
-      },
-      {
-        lever: 'playbook',
-        title: 'Playbook intelligence',
-        question: 'When a pricing event happens — renewal, expansion, partial churn, cross-sell — does the team have a defined motion to capture the right price, or does it depend on the rep?',
-        scenarios: [
-          { text: 'It depends entirely on the rep. The best ones negotiate well; the rest leave money on the table.' },
-          { text: "We have some shared best practices and discount guidelines, but they're tribal and inconsistently applied." },
-          { text: 'We have defined motions for renewal uplift and basic discounting. Packaging, bundling, and reinstatement are case-by-case.' },
-          { text: 'Defined playbooks cover renewal uplift, expansion pricing, bundle offers, and partial-churn repricing. Contracts have built-in protections (penalties, reinstatement, abuse-of-license).' },
-          { text: 'Pricing motions are systematic — predefined upsell paths, packaged bundles for consolidation, automatic repricing on product drop, and tested discount tiers — built into how every deal is structured.' },
-        ],
-      },
-      {
-        lever: 'execution',
-        title: 'Execution intelligence',
-        question: 'When a rep quotes a deal — renewal, expansion, restructure — how disciplined is the path from opportunity to signed contract? Is it driven by a system, or by spreadsheets and approvals up the chain?',
-        scenarios: [
-          { text: 'Quotes are spreadsheets. Discount approvals are negotiated up the management chain, deal by deal.' },
-          { text: "We have a CPQ tool but it's underused. Most real quoting still happens off-system." },
-          { text: "CPQ handles most deals and is integrated with CRM. Discount guidance is rule-based but static — doesn't adapt to the deal." },
-          { text: 'CPQ handles the vast majority of expansion and renewal quoting, with dynamic deal-scoring giving reps tailored discount guidance per deal.' },
-          { text: 'Quoting is fully automated with deal-scoring models that surface optimal pricing per deal and learn from outcomes — discount slippage is measured and shrinking.' },
-        ],
-      },
-      {
-        lever: 'governance',
-        title: 'Governance intelligence',
-        question: 'Is pricing run in your operating rhythm — price realization, discount trends, packaging performance reviewed in cadence — or is pricing set once and revisited rarely?',
-        scenarios: [
-          { text: 'Pricing is revisited when it breaks — a major deal, a competitor move, a board ask. No regular cadence.' },
-          { text: "Pricing comes up in annual planning. Otherwise it's RevOps or Finance running the numbers in isolation." },
-          { text: "Quarterly pricing review. Discount trends and renewal uplift get reported, but action items don't always follow through." },
-          { text: 'Monthly pricing review with leadership. Price realization, discount discipline, package performance tracked across the portfolio.' },
-          { text: 'Pricing is a top-line operating metric — realization, leakage, package mix, renewal uplift — with learnings feeding back into playbooks and contracts.' },
+          { text: "Renewals roll forward at the prior price, maybe a standard uplift. The value gap that's opened isn't captured." },
+          { text: "We push for increases where we have leverage, but it's negotiation, not a reset to current delivered value." },
+          { text: "We can quantify the value gap at renewal, but acting on it depends on the deal and the rep." },
+          { text: "Renewal price is reset against current delivered impact as a matter of course, so the gap gets captured each cycle." },
+          { text: "Repricing to current impact is systematic and locked in at every renewal — the value you've built is captured automatically, not left on the table." },
         ],
       },
     ],

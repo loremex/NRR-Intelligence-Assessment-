@@ -11,14 +11,13 @@ import {
 } from 'react'
 import type { NRRMode } from './nrr'
 
-const STORAGE_KEY = 'loremex_assessment_state_v7'
+const STORAGE_KEY = 'loremex_assessment_state_v8'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type { NRRMode }
 export type NRRField = 'startingMRR' | 'expansion' | 'contraction' | 'churn'
-export type ActionCapKey = 'retention' | 'expansion' | 'pricing'
-export type CapKey = 'measurement' | ActionCapKey
+export type CapKey = 'reporting' | 'retention' | 'expansion' | 'pricing'
 
 export type DiagnosticBlockKey = 'q1_reporting' | 'q2_retention' | 'q3_expansion' | 'q4_pricing'
 export type DiagnosticPriority = 'reporting' | 'retention' | 'expansion' | 'pricing'
@@ -55,7 +54,7 @@ export const DEFAULT_DIAGNOSTIC_ANSWERS: DiagnosticAnswers = {
 }
 
 export interface AssessmentState {
-  schemaVersion: 7
+  schemaVersion: 8
   sessionId: string | null
   contactId: string | null
   email: string | null
@@ -66,7 +65,7 @@ export interface AssessmentState {
   preSelectedCapabilities: CapKey[]
   selectedCapabilities: CapKey[]
   picks: {
-    measurement: Record<string, number | null>
+    reporting: Record<string, number | null>
     retention: Record<string, number | null>
     expansion: Record<string, number | null>
     pricing: Record<string, number | null>
@@ -88,8 +87,7 @@ export type AssessmentAction =
   | { type: 'SET_DIAGNOSTIC_ANYTHING_ELSE'; text: string }
   | { type: 'SET_PRE_SELECTED_CAPABILITIES'; capabilities: CapKey[] }
   | { type: 'SET_SELECTED_CAPABILITIES'; capabilities: CapKey[] }
-  | { type: 'SET_PICK_MEASUREMENT'; id: string; level: number | null }
-  | { type: 'SET_PICK_SCENARIO'; capKey: ActionCapKey; lever: string; scenarioIndex: number | null }
+  | { type: 'SET_PICK_SCENARIO'; capKey: CapKey; qId: string; scenarioIndex: number | null }
   | { type: 'COMPLETE_SECTION'; section: string }
   | { type: 'SET_COMPLETED_AT'; completedAt: string }
   | { type: 'RESET_ALL' }
@@ -97,7 +95,7 @@ export type AssessmentAction =
 // ─── Default state ────────────────────────────────────────────────────────────
 
 export const defaultState: AssessmentState = {
-  schemaVersion: 7,
+  schemaVersion: 8,
   sessionId: null,
   contactId: null,
   email: null,
@@ -108,7 +106,7 @@ export const defaultState: AssessmentState = {
   preSelectedCapabilities: [],
   selectedCapabilities: [],
   picks: {
-    measurement: {},
+    reporting: {},
     retention: {},
     expansion: {},
     pricing: {},
@@ -209,15 +207,6 @@ export function assessmentReducer(state: AssessmentState, action: AssessmentActi
     case 'SET_SELECTED_CAPABILITIES':
       return { ...state, selectedCapabilities: action.capabilities }
 
-    case 'SET_PICK_MEASUREMENT':
-      return {
-        ...state,
-        picks: {
-          ...state.picks,
-          measurement: { ...state.picks.measurement, [action.id]: action.level },
-        },
-      }
-
     case 'SET_PICK_SCENARIO':
       return {
         ...state,
@@ -225,7 +214,7 @@ export function assessmentReducer(state: AssessmentState, action: AssessmentActi
           ...state.picks,
           [action.capKey]: {
             ...state.picks[action.capKey],
-            [action.lever]: action.scenarioIndex,
+            [action.qId]: action.scenarioIndex,
           },
         },
       }
@@ -250,9 +239,8 @@ export function loadFromStorage(): AssessmentState {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return defaultState
     const parsed = JSON.parse(raw) as Partial<AssessmentState>
-    // Reject any stored state with a mismatched schema version
-    if (parsed.schemaVersion !== 7) return defaultState
-    return { ...defaultState, ...parsed, schemaVersion: 7 }
+    if (parsed.schemaVersion !== 8) return defaultState
+    return { ...defaultState, ...parsed, schemaVersion: 8 }
   } catch {
     return defaultState
   }
@@ -267,7 +255,6 @@ const AssessmentContext = createContext<AssessmentContextValue | null>(null)
 export function AssessmentStateProvider({ children }: { children: ReactNode }) {
   const [state, _dispatch] = useReducer(assessmentReducer, undefined, loadFromStorage)
 
-  // Wrap dispatch so RESET_ALL removes the storage key instead of writing defaultState.
   const dispatch = useCallback(
     (action: AssessmentAction) => {
       if (action.type === 'RESET_ALL') {

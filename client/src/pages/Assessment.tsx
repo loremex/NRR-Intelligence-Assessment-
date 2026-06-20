@@ -1,27 +1,21 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useAssessmentState, type CapKey, type ActionCapKey } from '../lib/state'
-import { getCapability } from '../lib/rubric'
-import { ProgressIndicator } from '../components/assessment/ProgressIndicator'
-import { MeasurementSection } from '../components/assessment/MeasurementSection'
+import { useAssessmentState, type CapKey } from '../lib/state'
+import { V3_ASSESSMENT_CONTENT, CAP_ORDER } from '../content/assessmentContent'
 import { ActionCapabilitySection } from '../components/assessment/ActionCapabilitySection'
-
-const CAP_ORDER: CapKey[] = ['measurement', 'retention', 'expansion', 'pricing']
+import { ProgressIndicator } from '../components/assessment/ProgressIndicator'
 
 function Assessment() {
   const navigate = useNavigate()
   const [state, dispatch] = useAssessmentState()
 
-  // Derive ordered list of sections from user's selection (preserving canonical order).
   const sections = CAP_ORDER.filter((k) => state.selectedCapabilities.includes(k))
 
-  // Initial section: first not yet completed. All-complete → sections.length → redirect to /scorecard.
   const getInitialIdx = () => {
     const idx = sections.findIndex((s) => !state.completedSections.includes(s))
     return idx === -1 ? sections.length : idx
   }
 
-  // All hooks before any early return.
   const [currentIdx, setCurrentIdx] = useState(getInitialIdx)
 
   if (!state.email) return <Navigate to="/" replace />
@@ -29,7 +23,7 @@ function Assessment() {
   if (currentIdx >= sections.length) return <Navigate to="/scorecard" replace />
 
   const currentSection = sections[currentIdx]
-  const currentCap = getCapability(currentSection)!
+  const currentCapContent = V3_ASSESSMENT_CONTENT.find((c) => c.key === currentSection)!
 
   function handleSectionComplete() {
     dispatch({ type: 'COMPLETE_SECTION', section: currentSection })
@@ -38,7 +32,6 @@ function Assessment() {
       navigate('/scorecard')
     } else {
       setCurrentIdx(nextIdx)
-      // Scroll to top for the next section.
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
@@ -52,9 +45,11 @@ function Assessment() {
     }
   }
 
+  const questionOffset = currentIdx * 3
+  const totalQuestions = sections.length * 3
+
   return (
     <div className="min-h-screen bg-gray-light font-body">
-      {/* Skip link */}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-navy focus:font-semibold focus:rounded focus:ring-2 focus:ring-brand-blue"
@@ -62,7 +57,6 @@ function Assessment() {
         Skip to main content
       </a>
 
-      {/* Nav */}
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <span className="font-display font-bold text-xl text-white tracking-tight">Loremex</span>
@@ -70,7 +64,6 @@ function Assessment() {
         </div>
       </nav>
 
-      {/* Progress header */}
       <header className="bg-white border-b border-slate-200 px-6 py-5">
         <div className="max-w-5xl mx-auto">
           <button
@@ -81,35 +74,26 @@ function Assessment() {
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            {currentIdx === 0 ? 'Back to Capability Selection' : `Back to ${getCapability(sections[currentIdx - 1])?.name ?? 'Previous'}`}
+            {currentIdx === 0
+              ? 'Back to Capability Selection'
+              : `Back to ${V3_ASSESSMENT_CONTENT.find((c) => c.key === sections[currentIdx - 1])?.name ?? 'Previous'}`}
           </button>
-
           <ProgressIndicator
             currentSectionIndex={currentIdx}
             totalSections={sections.length}
-            currentSectionName={currentCap.name}
+            currentSectionName={currentCapContent.name}
           />
         </div>
       </header>
 
-      {/* Section content */}
       <main id="main-content" className="max-w-5xl mx-auto px-6 py-8">
-        {currentSection === 'measurement' ? (
-          <MeasurementSection onComplete={handleSectionComplete} />
-        ) : (
-          <ActionCapabilitySection
-            capabilityKey={currentSection as ActionCapKey}
-            questionOffset={(() => {
-              const ACTION_CAP_ORDER: ActionCapKey[] = ['retention', 'expansion', 'pricing']
-              const selectedActionCaps = sections.filter((k): k is ActionCapKey => k !== 'measurement')
-              const idx = ACTION_CAP_ORDER.filter((k) => selectedActionCaps.includes(k)).indexOf(currentSection as ActionCapKey)
-              return Math.max(0, idx) * 6
-            })()}
-            totalQuestions={sections.filter((k) => k !== 'measurement').length * 6}
-            onComplete={handleSectionComplete}
-            onBackToPrevSection={handleBack}
-          />
-        )}
+        <ActionCapabilitySection
+          capabilityKey={currentSection as CapKey}
+          questionOffset={questionOffset}
+          totalQuestions={totalQuestions}
+          onComplete={handleSectionComplete}
+          onBackToPrevSection={handleBack}
+        />
       </main>
     </div>
   )

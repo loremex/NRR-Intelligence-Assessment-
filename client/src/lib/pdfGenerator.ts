@@ -17,28 +17,20 @@ declare module 'jspdf' {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface PDFV2LeverScore {
-  lever: string
+export interface PDFV3QuestionRow {
+  qId: string
   title: string
   score: number | null
-  gapToL5: number | null
-}
-
-export interface PDFMeasurementRow {
-  id: string
-  name: string
-  score: number | null
+  pickedText: string | null
   gapToL5: number | null
 }
 
 export interface PDFCapabilityData {
   key: string
   name: string
-  type: 'measurement' | 'action'
-  overall: number | null
-  v2LeverScores?: PDFV2LeverScore[]
-  measurementRows?: PDFMeasurementRow[]
-  weakestLevers: Array<{ name: string; score: number | null }>
+  score: number | null
+  stage: string
+  questions: PDFV3QuestionRow[]
 }
 
 export interface PDFParams {
@@ -52,7 +44,6 @@ export interface PDFParams {
   overallIntelligence: number | null
   distanceToL5: number | null
   capabilities: PDFCapabilityData[]
-  actionCapNames: string[]
   recommendationSentences: string[]
   ctaText: string
   ctaUrl: string
@@ -218,12 +209,10 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     ? (INTELLIGENCE_STAGE[Math.round(Math.max(1, Math.min(5, params.overallIntelligence)))] ?? 'Accountable')
     : null
 
-  const weakestActionCap = params.capabilities
-    .filter((c) => c.type === 'action')
-    .reduce<PDFCapabilityData | null>((min, c) => {
-      if (min === null) return c
-      return (c.overall ?? 99) < (min.overall ?? 99) ? c : min
-    }, null)
+  const weakestActionCap = params.capabilities.reduce<PDFCapabilityData | null>((min, c) => {
+    if (min === null) return c
+    return (c.score ?? 99) < (min.score ?? 99) ? c : min
+  }, null)
 
   const structuralConstraint = weakestActionCap?.name ?? null
 
@@ -360,18 +349,15 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   // Section B: Capability Detail (consolidated)
   y = sectionHeader(doc, 'CAPABILITY DETAIL', y)
 
-  const actionCaps = params.capabilities.filter((c) => c.type === 'action')
-  const measurementCap = params.capabilities.find((c) => c.type === 'measurement')
-
-  if (actionCaps.length > 0) {
+  if (params.capabilities.length > 0) {
     type BodyCell = string | { content: string; colSpan?: number; styles?: Record<string, unknown> }
-    const actionBody: BodyCell[][] = []
+    const capBody: BodyCell[][] = []
 
-    for (const cap of actionCaps) {
+    for (const cap of params.capabilities) {
       // Group header row
-      actionBody.push([
+      capBody.push([
         {
-          content: `${cap.name}  (${cap.overall !== null ? cap.overall.toFixed(2) : '—'} / 5)`,
+          content: `${cap.name}  (${cap.score !== null ? cap.score.toFixed(2) : '—'} / 5  ·  ${cap.stage})`,
           colSpan: 3,
           styles: {
             fillColor: N800,
@@ -382,74 +368,34 @@ export function generateScorecardPDF(params: PDFParams): Blob {
         },
       ])
 
-      if (cap.v2LeverScores) {
-        for (const r of cap.v2LeverScores) {
-          actionBody.push([
-            r.title,
-            {
-              content: r.score !== null ? r.score.toFixed(0) : '—',
-              styles: {
-                fillColor: navyCell(r.score),
-                textColor: navyCellText(r.score),
-                halign: 'center' as const,
-                fontStyle: 'bold' as const,
-              },
-            },
-            {
-              content: r.gapToL5 !== null ? `+${r.gapToL5.toFixed(0)} to L5` : '—',
-              styles: {
-                fillColor: gapCell(r.gapToL5),
-                textColor: gapCellText(r.gapToL5),
-                halign: 'center' as const,
-              },
-            },
-          ])
-        }
-      }
-    }
-
-    autoTable(doc, {
-      startY: y,
-      head: [['Lever', 'Score', 'Gap']],
-      body: actionBody,
-      theme: 'grid',
-      headStyles: { fillColor: N600, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold', fontSize: 7 },
-      bodyStyles: { fontSize: 7, textColor: DARK },
-      columnStyles: { 0: { cellWidth: 80 } },
-      margin: { left: 14, right: 14 },
-    })
-    y = doc.lastAutoTable.finalY + 6
-  }
-
-  if (measurementCap && measurementCap.measurementRows) {
-    // Measurement capability — separate table
-    autoTable(doc, {
-      startY: y,
-      head: [['NRR Reporting — Category', 'Score', 'Gap to L5']],
-      body: measurementCap.measurementRows.map((r) => {
-        const s = r.score
-        const gap = r.gapToL5
-        return [
-          r.name,
+      for (const q of cap.questions) {
+        capBody.push([
+          q.title,
           {
-            content: s !== null ? s.toFixed(2) : '—',
+            content: q.score !== null ? q.score.toFixed(0) : '—',
             styles: {
-              fillColor: navyCell(s),
-              textColor: navyCellText(s),
+              fillColor: navyCell(q.score),
+              textColor: navyCellText(q.score),
               halign: 'center' as const,
               fontStyle: 'bold' as const,
             },
           },
           {
-            content: gap !== null ? gap.toFixed(2) : '—',
+            content: q.gapToL5 !== null ? `+${q.gapToL5.toFixed(0)} to L5` : '—',
             styles: {
-              fillColor: gapCell(gap),
-              textColor: gapCellText(gap),
+              fillColor: gapCell(q.gapToL5),
+              textColor: gapCellText(q.gapToL5),
               halign: 'center' as const,
             },
           },
-        ]
-      }),
+        ])
+      }
+    }
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Question', 'Score', 'Gap']],
+      body: capBody,
       theme: 'grid',
       headStyles: { fillColor: N600, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold', fontSize: 7 },
       bodyStyles: { fontSize: 7, textColor: DARK },
@@ -459,36 +405,34 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     y = doc.lastAutoTable.finalY + 6
   }
 
-  // Section C: Top 3 Highest-Impact Levers Across All Capabilities
-  y = sectionHeader(doc, 'TOP 3 HIGHEST-IMPACT LEVERS', y)
+  // Section C: Top 3 Highest-Impact Questions Across All Capabilities
+  y = sectionHeader(doc, 'TOP 3 HIGHEST-IMPACT AREAS TO ADDRESS', y)
 
-  // Collect all v2 lever scores from all action caps, annotated with cap name
-  const allLevers: Array<{ title: string; capName: string; score: number | null; gap: number | null }> = []
-  for (const cap of actionCaps) {
-    if (cap.v2LeverScores) {
-      for (const lr of cap.v2LeverScores) {
-        allLevers.push({
-          title: lr.title,
-          capName: cap.name,
-          score: lr.score,
-          gap: lr.gapToL5,
-        })
-      }
+  // Collect all question scores, annotated with cap name
+  const allQuestions: Array<{ title: string; capName: string; score: number | null; gap: number | null }> = []
+  for (const cap of params.capabilities) {
+    for (const q of cap.questions) {
+      allQuestions.push({
+        title: q.title,
+        capName: cap.name,
+        score: q.score,
+        gap: q.gapToL5,
+      })
     }
   }
 
   // Sort by score ascending (nulls last), take top 3
-  const sortedLevers = allLevers
-    .filter((l) => l.score !== null)
+  const sortedQuestions = allQuestions
+    .filter((q) => q.score !== null)
     .sort((a, b) => (a.score ?? 99) - (b.score ?? 99))
     .slice(0, 3)
 
   doc.setFontSize(8)
   doc.setTextColor(...DARK)
   doc.setFont('helvetica', 'normal')
-  for (let i = 0; i < sortedLevers.length; i++) {
-    const lv = sortedLevers[i]
-    const line = `${i + 1}.  ${lv.title} (${lv.capName}) — score ${lv.score?.toFixed(0) ?? '—'}, gap ${lv.gap?.toFixed(0) ?? '—'} to L5`
+  for (let i = 0; i < sortedQuestions.length; i++) {
+    const q = sortedQuestions[i]
+    const line = `${i + 1}.  ${q.title} (${q.capName}) — score ${q.score?.toFixed(0) ?? '—'}, gap ${q.gap?.toFixed(0) ?? '—'} to L5`
     doc.text(line, 14, y)
     y += 5
   }
@@ -506,7 +450,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   // Para 1 — Structural constraint
   let para1: string
   if (weakestActionCap) {
-    para1 = `Your ${weakestActionCap.name} is the lowest-scoring capability (${weakestActionCap.overall?.toFixed(2) ?? '—'}/5). Address this first to establish the foundation for NRR improvement.`
+    para1 = `Your ${weakestActionCap.name} is the lowest-scoring capability (${weakestActionCap.score?.toFixed(2) ?? '—'}/5). Address this first to establish the foundation for NRR improvement.`
   } else {
     para1 = 'Focus on addressing your lowest-scoring capability to establish the foundation for NRR improvement.'
   }
@@ -518,26 +462,26 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   doc.text(para1Lines, 14, y)
   y += para1Lines.length * 5 + 5
 
-  // Para 2 — Weakest cap + top 3 levers
+  // Para 2 — Weakest cap + top 3 questions
   if (weakestActionCap) {
-    const weakestCapLevers = weakestActionCap.v2LeverScores
-      ? [...weakestActionCap.v2LeverScores]
-          .filter((l) => l.score !== null)
+    const weakestCapQuestions = weakestActionCap.questions
+      ? [...weakestActionCap.questions]
+          .filter((q) => q.score !== null)
           .sort((a, b) => (a.score ?? 99) - (b.score ?? 99))
           .slice(0, 3)
       : []
 
-    if (weakestCapLevers.length > 0) {
-      const leverNames = weakestCapLevers.map((l) => `${l.title} (${l.score?.toFixed(0) ?? '—'})`)
-      let leverList: string
-      if (leverNames.length === 1) {
-        leverList = leverNames[0]
-      } else if (leverNames.length === 2) {
-        leverList = `${leverNames[0]} and ${leverNames[1]}`
+    if (weakestCapQuestions.length > 0) {
+      const questionNames = weakestCapQuestions.map((q) => `${q.title} (${q.score?.toFixed(0) ?? '—'})`)
+      let questionList: string
+      if (questionNames.length === 1) {
+        questionList = questionNames[0]
+      } else if (questionNames.length === 2) {
+        questionList = `${questionNames[0]} and ${questionNames[1]}`
       } else {
-        leverList = `${leverNames[0]}, ${leverNames[1]}, and ${leverNames[2]}`
+        questionList = `${questionNames[0]}, ${questionNames[1]}, and ${questionNames[2]}`
       }
-      const para2 = `Within ${weakestActionCap.name}, the three highest-impact levers are: ${leverList}. Focus on these first before expanding to other levers.`
+      const para2 = `Within ${weakestActionCap.name}, the three highest-impact areas are: ${questionList}. Focus on these first before expanding to other areas.`
       const para2Lines = doc.splitTextToSize(para2, pageWidth - 28) as string[]
       doc.text(para2Lines, 14, y)
       y += para2Lines.length * 5 + 5

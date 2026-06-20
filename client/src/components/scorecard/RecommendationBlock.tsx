@@ -4,7 +4,7 @@ import type { AllPicks } from '../../lib/scoring'
 
 function toPicks(state: ReturnType<typeof useAssessmentState>[0]): AllPicks {
   return {
-    measurement: state.picks.measurement,
+    reporting: state.picks.reporting,
     retention: state.picks.retention,
     expansion: state.picks.expansion,
     pricing: state.picks.pricing,

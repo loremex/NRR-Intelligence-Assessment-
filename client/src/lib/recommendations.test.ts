@@ -6,15 +6,9 @@ import type { CapKey } from './state'
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeAllScenario(scenarioIndex: number): AllPicks {
-  const cap: Record<string, number | null> = {}
-  for (const lever of ['impact', 'whitespace', 'accountability', 'playbook', 'execution', 'governance']) {
-    cap[lever] = scenarioIndex
-  }
-  const mIds = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7']
-  const mPicks: Record<string, number | null> = {}
-  mIds.forEach((id) => { mPicks[id] = scenarioIndex + 1 })
+  const cap: Record<string, number | null> = { q1: scenarioIndex, q2: scenarioIndex, q3: scenarioIndex }
   return {
-    measurement: mPicks,
+    reporting: { ...cap },
     retention: { ...cap },
     expansion: { ...cap },
     pricing: { ...cap },
@@ -22,11 +16,7 @@ function makeAllScenario(scenarioIndex: number): AllPicks {
 }
 
 function makeCapPicks(scenarioIndex: number): Record<string, number | null> {
-  const cap: Record<string, number | null> = {}
-  for (const lever of ['impact', 'whitespace', 'accountability', 'playbook', 'execution', 'governance']) {
-    cap[lever] = scenarioIndex
-  }
-  return cap
+  return { q1: scenarioIndex, q2: scenarioIndex, q3: scenarioIndex }
 }
 
 function noUnfilledTokens(sentences: string[]): boolean {
@@ -36,8 +26,8 @@ function noUnfilledTokens(sentences: string[]): boolean {
 
 // ─── Pattern A ────────────────────────────────────────────────────────────────
 
-describe('Pattern A — weakest cap (always fires for ≥1 action cap)', () => {
-  it('fires with 1 action cap (retention only)', () => {
+describe('Pattern A — weakest cap (always fires for ≥1 cap)', () => {
+  it('fires with 1 cap (retention only)', () => {
     const picks = makeAllScenario(2)
     const caps: CapKey[] = ['retention']
     const result = composeRecommendation(caps, picks)
@@ -46,9 +36,9 @@ describe('Pattern A — weakest cap (always fires for ≥1 action cap)', () => {
     expect(combined).toContain('/5')
   })
 
-  it('fires with 3 action caps — identifies weakest', () => {
+  it('fires with 3 caps — identifies weakest', () => {
     const picks: AllPicks = {
-      measurement: {},
+      reporting: {},
       retention: makeCapPicks(3),   // score 4
       expansion: makeCapPicks(1),   // score 2 (weakest)
       pricing: makeCapPicks(2),     // score 3
@@ -77,28 +67,28 @@ describe('Pattern A — weakest cap (always fires for ≥1 action cap)', () => {
 
 // ─── Pattern C ────────────────────────────────────────────────────────────────
 
-describe('Pattern C — measurement gap', () => {
-  it('fires when measurement selected and overall < 3.0', () => {
+describe('Pattern C — reporting gap', () => {
+  it('fires when reporting selected and overall < 3.0', () => {
     const picks: AllPicks = {
-      measurement: { M1: 2, M2: 2, M3: 2, M4: 1, M5: 2, M6: 1, M7: 1 },
+      reporting: { q1: 1, q2: 1, q3: 0 }, // scores 2,2,1 → cap=1.67 < 3
       retention: makeCapPicks(2),
       expansion: {},
       pricing: {},
     }
-    const caps: CapKey[] = ['measurement', 'retention']
+    const caps: CapKey[] = ['reporting', 'retention']
     const result = composeRecommendation(caps, picks)
     const combined = result.sentences.join(' ')
     expect(combined).toContain('NRR Reporting maturity')
   })
 
-  it('does NOT fire when measurement overall >= 3.0', () => {
-    const picks = makeAllScenario(3)
-    const caps: CapKey[] = ['measurement', 'retention']
+  it('does NOT fire when reporting overall >= 3.0', () => {
+    const picks = makeAllScenario(3) // score 4 each
+    const caps: CapKey[] = ['reporting', 'retention']
     const result = composeRecommendation(caps, picks)
     expect(result.sentences.join(' ')).not.toContain('reliable measurement')
   })
 
-  it('does NOT fire when measurement not selected', () => {
+  it('does NOT fire when reporting not selected', () => {
     const picks = makeAllScenario(0)
     const caps: CapKey[] = ['retention']
     const result = composeRecommendation(caps, picks)
@@ -131,7 +121,7 @@ describe('Pattern D — strong baseline', () => {
 describe('Pattern F — pricing gap', () => {
   it('fires when pricing is lower than other caps by >0.5', () => {
     const picks: AllPicks = {
-      measurement: {},
+      reporting: {},
       retention: makeCapPicks(3),   // score 4
       expansion: makeCapPicks(3),   // score 4
       pricing: makeCapPicks(0),     // score 1
@@ -160,59 +150,34 @@ describe('Pattern F — pricing gap', () => {
 
 describe('Sentence budget — max 3 pattern sentences', () => {
   it('never exceeds 3 sentences even when many patterns fire', () => {
-    // C fires (low measurement), A fires (always, 2 sentences) → total 3
+    // C fires (low reporting), A fires (always, 2 sentences) → total 3
     const picks: AllPicks = {
-      measurement: { M1: 1, M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1 },
+      reporting: { q1: 0, q2: 0, q3: 0 }, // score 1 < 3 → Pattern C fires
       retention: makeCapPicks(1),
       expansion: makeCapPicks(1),
       pricing: {},
     }
-    const result = composeRecommendation(['measurement', 'retention', 'expansion'], picks)
+    const result = composeRecommendation(['reporting', 'retention', 'expansion'], picks)
     expect(result.sentences.length).toBeLessThanOrEqual(3)
   })
 
   it('priority order: C beats A when budget is tight', () => {
     const picks: AllPicks = {
-      measurement: { M1: 1, M2: 1, M3: 1, M4: 1, M5: 1, M6: 1, M7: 1 },
+      reporting: { q1: 0, q2: 0, q3: 0 }, // score 1 < 3
       retention: makeCapPicks(2),
       expansion: {},
       pricing: {},
     }
-    const result = composeRecommendation(['measurement', 'retention'], picks)
+    const result = composeRecommendation(['reporting', 'retention'], picks)
     // C (priority 1) should appear before A (priority 3)
     const combined = result.sentences.join(' ')
     expect(combined).toContain('NRR Reporting maturity')
   })
 })
 
-// ─── Measurement-only special case ───────────────────────────────────────────
+// ─── Empty selection ──────────────────────────────────────────────────────────
 
-describe('Measurement-only special case', () => {
-  it('fires specialized variant when only measurement selected', () => {
-    const picks: AllPicks = {
-      measurement: { M1: 2, M2: 3, M3: 2, M4: 1, M5: 3, M6: 2, M7: 1 },
-      retention: {},
-      expansion: {},
-      pricing: {},
-    }
-    const result = composeRecommendation(['measurement'], picks)
-    expect(result.sentences.length).toBe(1)
-    const s = result.sentences[0]
-    expect(s).toContain('NRR Reporting maturity')
-    expect(s).toContain('foundation')
-  })
-
-  it('measurement-only includes the score', () => {
-    const picks: AllPicks = {
-      measurement: { M1: 3, M2: 3, M3: 3, M4: 3, M5: 3, M6: 3, M7: 3 },
-      retention: {},
-      expansion: {},
-      pricing: {},
-    }
-    const result = composeRecommendation(['measurement'], picks)
-    expect(result.sentences[0]).toContain('/5')
-  })
-
+describe('Empty selection', () => {
   it('empty selection returns empty sentences', () => {
     const picks = makeAllScenario(2)
     const result = composeRecommendation([], picks)
@@ -228,11 +193,11 @@ describe('No unfilled tokens in any combination', () => {
     { caps: ['retention'], desc: 'retention only' },
     { caps: ['expansion'], desc: 'expansion only' },
     { caps: ['pricing'], desc: 'pricing only' },
-    { caps: ['measurement', 'retention'], desc: 'measurement + retention' },
+    { caps: ['reporting', 'retention'], desc: 'reporting + retention' },
     { caps: ['retention', 'expansion'], desc: 'retention + expansion' },
-    { caps: ['retention', 'expansion', 'pricing'], desc: 'all action caps' },
-    { caps: ['measurement', 'retention', 'expansion', 'pricing'], desc: 'all caps' },
-    { caps: ['measurement'], desc: 'measurement only' },
+    { caps: ['retention', 'expansion', 'pricing'], desc: 'retention + expansion + pricing' },
+    { caps: ['reporting', 'retention', 'expansion', 'pricing'], desc: 'all caps' },
+    { caps: ['reporting'], desc: 'reporting only' },
   ]
 
   for (const { caps, desc } of combos) {
