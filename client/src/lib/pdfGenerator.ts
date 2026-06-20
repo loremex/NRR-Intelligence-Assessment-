@@ -109,16 +109,16 @@ function pageStrip(doc: jsPDF, text: string): void {
   doc.rect(0, 0, w, 8, 'F')
   doc.setFontSize(7.5)
   doc.setTextColor(255, 255, 255)
-  doc.setFont('helvetica', 'bold')
+  doc.setFont('times', 'bold')
   doc.text(text, 14, 5.8)
 }
 
 function sectionHeader(doc: jsPDF, text: string, y: number): number {
   doc.setFontSize(8)
   doc.setTextColor(...N400)
-  doc.setFont('helvetica', 'bold')
+  doc.setFont('times', 'bold')
   doc.text(text, 14, y)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('times', 'normal')
   return y + 5
 }
 
@@ -137,7 +137,7 @@ function footer(doc: jsPDF, page: number, total: number, date: string): void {
   doc.line(14, h - 10, w - 14, h - 10)
   doc.setFontSize(6.5)
   doc.setTextColor(150, 160, 175)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('times', 'normal')
   doc.text(`Loremex NRR Intelligence Assessment  ·  Generated ${date}`, 14, h - 6)
   doc.text(`Page ${page} of ${total}`, w - 14, h - 6, { align: 'right' })
 }
@@ -158,10 +158,10 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   doc.rect(0, 0, pageWidth, 20, 'F')
   doc.setFontSize(10)
   doc.setTextColor(255, 255, 255)
-  doc.setFont('helvetica', 'bold')
+  doc.setFont('times', 'bold')
   doc.text('LOREMEX NRR INTELLIGENCE SCORECARD', 14, 13)
   doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('times', 'normal')
   doc.text(`${params.email}  ·  ${date}`, pageWidth - 14, 13, { align: 'right' })
 
   let y = 28
@@ -181,7 +181,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   const headlineText = `Your NRR Intelligence is at ${stage ?? 'Accountable'} (${params.overallIntelligence?.toFixed(2) ?? '—'}/5). Your structural constraint is ${structuralConstraint ?? 'your lowest-scoring capability'}.`
   doc.setFontSize(10)
   doc.setTextColor(...N800)
-  doc.setFont('helvetica', 'bold')
+  doc.setFont('times', 'bold')
   const headlineLines = doc.splitTextToSize(headlineText, pageWidth - 28) as string[]
   doc.text(headlineLines, 14, y)
   y += headlineLines.length * 5 + 6
@@ -230,14 +230,14 @@ export function generateScorecardPDF(params: PDFParams): Blob {
 
     doc.setFontSize(9.5)
     doc.setTextColor(...N800)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('times', 'bold')
     const headlineLines = doc.splitTextToSize(headline, pageWidth - 28) as string[]
     doc.text(headlineLines, 14, y)
     y += headlineLines.length * 5 + 2
 
     doc.setFontSize(8)
     doc.setTextColor(...DARK)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('times', 'normal')
     const bodyLines = doc.splitTextToSize(body, pageWidth - 28) as string[]
     doc.text(bodyLines, 14, y)
     y += bodyLines.length * 4.5 + 3
@@ -245,9 +245,9 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     // Leak amount tile (inline text row)
     doc.setFontSize(8)
     doc.setTextColor(...GRAY)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('times', 'bold')
     doc.text(`Quarterly Leak: `, 14, y)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('times', 'normal')
     doc.setTextColor(...N800)
     doc.text(leakFmt, 14 + 28, y)
     doc.setTextColor(...GRAY)
@@ -275,13 +275,13 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     doc.roundedRect(tx, y, tileW, 18, 1.5, 1.5, 'F')
     doc.setFontSize(6.5)
     doc.setTextColor(...GRAY)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('times', 'normal')
     doc.text(tile.label, tx + tileW / 2, y + 5.5, { align: 'center' })
     doc.setFontSize(11)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('times', 'bold')
     doc.setTextColor(...N800)
     doc.text(tile.value, tx + tileW / 2, y + 14, { align: 'center' })
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('times', 'normal')
   })
   y += 22
 
@@ -294,7 +294,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     const pStr = `${pSign}${(p * 100).toFixed(1)}%`
     doc.setFontSize(7.5)
     doc.setTextColor(...GRAY)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('times', 'normal')
     doc.text(
       `Net Movement: ${dStr} (${pStr})  ·  Based on quarterly figures entered by user`,
       14,
@@ -396,7 +396,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
 
   doc.setFontSize(8)
   doc.setTextColor(...DARK)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('times', 'normal')
   for (let i = 0; i < sortedQuestions.length; i++) {
     const q = sortedQuestions[i]
     const line = `${i + 1}.  ${q.title} (${q.capName}) — score ${q.score?.toFixed(0) ?? '—'}, gap ${q.gap?.toFixed(0) ?? '—'} to L5`
@@ -475,7 +475,7 @@ export function generateScorecardPDF(params: PDFParams): Blob {
 
   doc.setFontSize(9)
   doc.setTextColor(...DARK)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('times', 'normal')
   const para1Lines = doc.splitTextToSize(para1, pageWidth - 28) as string[]
   doc.text(para1Lines, 14, y)
   y += para1Lines.length * 5 + 5
@@ -528,11 +528,11 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   for (const step of nextSteps) {
     doc.setFontSize(8.5)
     doc.setTextColor(...step.color)
-    doc.setFont('helvetica', step.bold ? 'bold' : 'normal')
+    doc.setFont('times', step.bold ? 'bold' : 'normal')
     doc.text(`• ${step.text}`, 14, y)
     y += 6
   }
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('times', 'normal')
 
   thinRule(doc, y)
   y += 5
@@ -540,9 +540,9 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   // Section C: AI-Generated Recommendation Sentences
   doc.setFontSize(7)
   doc.setTextColor(...GRAY)
-  doc.setFont('helvetica', 'bold')
+  doc.setFont('times', 'bold')
   doc.text('AI-GENERATED RECOMMENDATION', 14, y)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('times', 'normal')
   y += 4
 
   for (const sentence of params.recommendationSentences) {
@@ -560,13 +560,13 @@ export function generateScorecardPDF(params: PDFParams): Blob {
   const m3terText = 'Companies that move from manual, flat pricing to automated, usage-based models run 20–25 points higher on NRR.'
   doc.setFontSize(7.5)
   doc.setTextColor(...GRAY)
-  doc.setFont('helvetica', 'italic')
+  doc.setFont('times', 'italic')
   const m3terLines = doc.splitTextToSize(m3terText, pageWidth - 28) as string[]
   doc.text(m3terLines, 14, y)
   y += m3terLines.length * 4.5 + 2
 
   doc.setFontSize(7)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('times', 'normal')
   doc.text('Source: m3ter, Net Revenue Retention and SaaS Valuations (2026).', 14, y)
   y += 6
 
@@ -580,10 +580,10 @@ export function generateScorecardPDF(params: PDFParams): Blob {
     const ceilingText = `Your ceiling is bounded by the ${fmtLeak(params.leakDollars)} you're leaking now.`
     doc.setFontSize(7.5)
     doc.setTextColor(...N600)
-    doc.setFont('helvetica', 'italic')
+    doc.setFont('times', 'italic')
     const ceilingLines = doc.splitTextToSize(ceilingText, pageWidth - 28) as string[]
     doc.text(ceilingLines, 14, y)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('times', 'normal')
     y += ceilingLines.length * 4.5 + 3
   }
 

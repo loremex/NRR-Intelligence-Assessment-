@@ -101,7 +101,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
             {/* Name + subtitle */}
             <div>
               <div style={{ fontSize: 15.5, fontWeight: 700, color: '#0E2B41' }}>{cap.name}</div>
-              <div style={{ fontFamily: 'Arial,sans-serif', fontSize: 11.5, color: '#9AA7B3', marginTop: 2 }}>
+              <div style={{ fontFamily: 'Georgia, serif', fontSize: 11.5, color: '#9AA7B3', marginTop: 2 }}>
                 {'L' + (score !== null ? Math.round(score) : '—') + ' · ' + (score !== null ? LEVEL_NAMES[Math.round(score)] : '—')}
                 {isWeakest ? '  •  weakest' : ''}
               </div>
@@ -119,7 +119,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
 
             {/* Arrow */}
             <div style={{
-              fontFamily: 'Arial,sans-serif',
+              fontFamily: 'Georgia, serif',
               fontSize: 16,
               color: isSel ? ACCENT : '#C2CAD3',
               textAlign: 'center' as const,
@@ -156,7 +156,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' as const }}>
               <span style={{ fontSize: 19, fontWeight: 700, color: '#0E2B41' }}>{selCap.name}</span>
               <span style={{
-                fontFamily: 'Arial,sans-serif',
+                fontFamily: 'Georgia, serif',
                 fontSize: 11,
                 fontWeight: 700,
                 color: selColor,
@@ -170,7 +170,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
 
             {/* Blurb */}
             <p style={{
-              fontFamily: 'Arial,sans-serif',
+              fontFamily: 'Georgia, serif',
               margin: '6px 0 16px',
               fontSize: 13.5,
               lineHeight: 1.55,
@@ -189,7 +189,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
                     <div key={L} style={{ flex: 1, textAlign: 'center' as const }}>
                       <div style={{ height: 6, borderRadius: 999, background: on ? selColor : '#E2E8EF', transition: 'background .3s' }} />
                       <div style={{
-                        fontFamily: 'Arial,sans-serif',
+                        fontFamily: 'Georgia, serif',
                         marginTop: 7,
                         fontSize: 10,
                         fontWeight: 700,
@@ -205,7 +205,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
               {/* Current level context */}
               <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <span style={{
-                  fontFamily: 'Arial,sans-serif',
+                  fontFamily: 'Georgia, serif',
                   flexShrink: 0,
                   fontSize: 11,
                   fontWeight: 700,
@@ -221,7 +221,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#0E2B41', lineHeight: 1.25 }}>
                     {LEVEL_NAMES[lvl]}
                   </div>
-                  <div style={{ fontFamily: 'Arial,sans-serif', fontSize: 12.5, lineHeight: 1.5, color: '#6B7B89', marginTop: 2 }}>
+                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 12.5, lineHeight: 1.5, color: '#6B7B89', marginTop: 2 }}>
                     {LEVEL_DESCS[lvl]}
                   </div>
                 </div>
@@ -236,7 +236,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12, flexWrap: 'wrap' as const }}>
               <span style={{
-                fontFamily: 'Arial,sans-serif',
+                fontFamily: 'Georgia, serif',
                 fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: '.1em',
@@ -246,13 +246,13 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
                 {atTop ? 'Best-in-class' : 'What L' + nextLvl + ' looks like'}
               </span>
               {!atTop && (
-                <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 11, fontWeight: 700, color: selColor }}>
+                <span style={{ fontFamily: 'Georgia, serif', fontSize: 11, fontWeight: 700, color: selColor }}>
                   {LEVEL_NAMES[nextLvl]}
                 </span>
               )}
             </div>
 
-            <p style={{ fontFamily: 'Arial,sans-serif', margin: '0 0 16px', fontSize: 13.5, lineHeight: 1.6, color: '#3D4A57' }}>
+            <p style={{ fontFamily: 'Georgia, serif', margin: '0 0 16px', fontSize: 13.5, lineHeight: 1.6, color: '#3D4A57' }}>
               {atTop
                 ? "You’re already operating at the top of the ladder — the focus shifts to holding the edge as the market moves."
                 : LEVEL_DESCS[nextLvl]}
@@ -270,7 +270,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
             }}>
               <div style={{ display: 'flex', flexDirection: 'column' as const }}>
                 <span style={{
-                  fontFamily: 'Arial,sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: 10,
                   fontWeight: 700,
                   letterSpacing: '.1em',
@@ -279,7 +279,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
                 }}>
                   Priority
                 </span>
-                <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 11.5, color: '#9AA7B3', marginTop: 2 }}>
+                <span style={{ fontFamily: 'Georgia, serif', fontSize: 11.5, color: '#9AA7B3', marginTop: 2 }}>
                   {atTop
                     ? 'Focus shifts to holding the edge'
                     : `Reaching L${nextLvl} here moves your NRR most`}
@@ -314,11 +314,11 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
                       {cellScore !== null ? 'L' + cellScore : '—'}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: 'Arial,sans-serif', fontSize: 11, fontWeight: 700, color: '#6B7B89', marginBottom: 2 }}>{q.title}</div>
+                      <div style={{ fontFamily: 'Georgia, serif', fontSize: 11, fontWeight: 700, color: '#6B7B89', marginBottom: 2 }}>{q.title}</div>
                       {pickedText ? (
-                        <div style={{ fontFamily: 'Arial,sans-serif', fontSize: 12, color: '#52606D', lineHeight: 1.5 }}>{pickedText}</div>
+                        <div style={{ fontFamily: 'Georgia, serif', fontSize: 12, color: '#52606D', lineHeight: 1.5 }}>{pickedText}</div>
                       ) : (
-                        <div style={{ fontFamily: 'Arial,sans-serif', fontSize: 12, color: '#C2CAD3', fontStyle: 'italic' }}>Not answered</div>
+                        <div style={{ fontFamily: 'Georgia, serif', fontSize: 12, color: '#C2CAD3', fontStyle: 'italic' }}>Not answered</div>
                       )}
                     </div>
                   </div>

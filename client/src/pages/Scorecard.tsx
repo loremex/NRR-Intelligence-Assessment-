@@ -381,7 +381,7 @@ function Scorecard() {
   return (
     <div
       ref={rootRef}
-      style={{ minHeight: '100vh', background: '#EEF1F4', fontFamily: "'Instrument Sans', system-ui, sans-serif", color: '#0E2B41' }}
+      style={{ minHeight: '100vh', background: '#EEF1F4', fontFamily: "Georgia, 'Times New Roman', serif", color: '#0E2B41' }}
     >
       <a
         href="#main-content"
@@ -492,7 +492,7 @@ function Scorecard() {
               <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: '#0E2B41', margin: 0 }}>
                 Capability Summary
               </h2>
-              <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 12, color: '#9AA7B3' }}>
+              <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 12, color: '#9AA7B3' }}>
                 Click a capability to explore
               </span>
             </div>

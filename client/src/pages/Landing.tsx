@@ -148,7 +148,7 @@ function AssessmentIntro() {
             display: 'inline-flex', alignItems: 'center', gap: 9,
             fontSize: 11, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase',
             color: INTRO_ACCENT, marginBottom: 20,
-            fontFamily: "'DM Sans', system-ui, sans-serif",
+            fontFamily: "Georgia, 'Times New Roman', serif",
           }}>
             <span style={{ width: 24, height: 1.5, background: INTRO_ACCENT, display: 'inline-block' }} />
             Before we begin
@@ -174,14 +174,14 @@ function AssessmentIntro() {
           </p>
 
           {/* Body paragraphs */}
-          <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "Georgia, 'Times New Roman', serif" }}>
             Most assessments grade these four areas against best practices — the playbooks that defined SaaS for the last decade. Those playbooks are exactly what the next generation of companies are leaving behind.
           </p>
-          <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "Georgia, 'Times New Roman', serif" }}>
             This one measures something different: how closely your operation runs on what actually drives each area — and how far that is from where the best operators are already going. Not &ldquo;do you follow the playbook,&rdquo; but{' '}
             <span style={{ color: INTRO_ACCENT, fontWeight: 600 }}>&ldquo;can you see it, price it, and act on it in time.&rdquo;</span>
           </p>
-          <p style={{ margin: 0, fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          <p style={{ margin: 0, fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "Georgia, 'Times New Roman', serif" }}>
             What you get back isn&rsquo;t a grade against your peers. It&rsquo;s the distance between how you run today and how post-sales runs when it&rsquo;s built for what&rsquo;s coming.
           </p>
         </div>
@@ -236,7 +236,7 @@ function AssessmentIntro() {
                   <div style={{
                     fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase',
                     color: INTRO_ACCENT, marginBottom: 16,
-                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontFamily: "Georgia, 'Times New Roman', serif",
                   }}>
                     {area.tag}
                   </div>
@@ -266,7 +266,7 @@ function AssessmentIntro() {
                   {/* Role */}
                   <div style={{
                     fontSize: 13, fontWeight: 600, color: '#8896A3', marginBottom: 12,
-                    fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '.01em',
+                    fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: '.01em',
                   }}>
                     {area.role}
                   </div>
@@ -274,7 +274,7 @@ function AssessmentIntro() {
                   {/* Description */}
                   <p style={{
                     margin: 0, fontSize: 14, lineHeight: 1.65, color: '#52606D',
-                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontFamily: "Georgia, 'Times New Roman', serif",
                   }}>
                     {area.desc}
                   </p>

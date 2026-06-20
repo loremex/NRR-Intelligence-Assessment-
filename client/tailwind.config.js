@@ -15,8 +15,8 @@ export default {
         'level-5': '#6EE7B7',
       },
       fontFamily: {
-        display: ['Georgia', 'serif'],
-        body: ['Instrument Sans', 'sans-serif'],
+        display: ['Georgia', "'Times New Roman'", 'serif'],
+        body: ['Georgia', "'Times New Roman'", 'serif'],
       },
     },
   },

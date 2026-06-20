@@ -78,7 +78,7 @@ export function RecommendationBlock({
             <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap' as const }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <div style={{ width: 16, height: 16, borderRadius: 4, background: '#2563EB', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.65)' }}>
+                <span style={{ fontFamily: 'Georgia, serif', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.65)' }}>
                   Your company
                 </span>
               </div>
@@ -91,7 +91,7 @@ export function RecommendationBlock({
                   border: '1.5px dashed rgba(99,179,237,.65)',
                   flexShrink: 0,
                 }} />
-                <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.65)' }}>
+                <span style={{ fontFamily: 'Georgia, serif', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.65)' }}>
                   Frontier
                 </span>
               </div>
@@ -193,7 +193,7 @@ export function RecommendationBlock({
             {/* m3ter citation + leak ceiling */}
             <div style={{ marginBottom: 20 }}>
               <p style={{
-                fontFamily: 'Arial,sans-serif',
+                fontFamily: 'Georgia, serif',
                 fontSize: 12,
                 color: 'rgba(255,255,255,.40)',
                 lineHeight: 1.65,
@@ -204,7 +204,7 @@ export function RecommendationBlock({
                 <span style={{ fontSize: 10.5 }}>Source: m3ter, <em>Net Revenue Retention and SaaS Valuations</em> (2026).</span>
               </p>
               {leakDollars !== null && leakDollars > 0 && (
-                <p style={{ fontFamily: 'Arial,sans-serif', fontSize: 13, color: 'rgba(255,255,255,.50)', lineHeight: 1.6, margin: 0 }}>
+                <p style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: 'rgba(255,255,255,.50)', lineHeight: 1.6, margin: 0 }}>
                   Your ceiling is bounded by the {formatCurrency(leakDollars, { compact: true })} you're leaking now.
                 </p>
               )}

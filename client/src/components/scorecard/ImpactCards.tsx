@@ -33,7 +33,7 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
   return (
     <div data-reveal="impact" style={{ marginTop: 30 }}>
       <div style={{
-        fontFamily: 'Arial,sans-serif',
+        fontFamily: 'Georgia, serif',
         fontSize: 11,
         fontWeight: 700,
         letterSpacing: '.14em',
@@ -96,12 +96,12 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
                 {/* Title + area */}
                 <div>
                   <div style={{ fontSize: isSplit ? 14 : 15.5, fontWeight: 700, color: '#0E2B41' }}>{title}</div>
-                  <div style={{ fontFamily: 'Arial,sans-serif', fontSize: 12, color: '#9AA7B3', marginTop: 2 }}>{capDisplayName}</div>
+                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 12, color: '#9AA7B3', marginTop: 2 }}>{capDisplayName}</div>
                 </div>
 
                 {/* Split: arrow only */}
                 {isSplit && (
-                  <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 16, color: isOpen ? ACCENT : '#C2CAD3' }}>&#8250;</span>
+                  <span style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: isOpen ? ACCENT : '#C2CAD3' }}>&#8250;</span>
                 )}
 
                 {/* Non-split: score badge */}
@@ -120,14 +120,14 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
 
                 {/* Non-split: gap label */}
                 {!isSplit && (
-                  <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 12, fontWeight: 600, color: '#6B7B89', whiteSpace: 'nowrap' as const }}>
+                  <span style={{ fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 600, color: '#6B7B89', whiteSpace: 'nowrap' as const }}>
                     +{lv.gapToL5} to L5
                   </span>
                 )}
 
                 {/* Non-split: trailing arrow */}
                 {!isSplit && (
-                  <div style={{ fontFamily: 'Arial,sans-serif', fontSize: 16, color: '#C2CAD3', textAlign: 'center' as const }}>&#8250;</div>
+                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: '#C2CAD3', textAlign: 'center' as const }}>&#8250;</div>
                 )}
               </div>
             )
@@ -166,7 +166,7 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
                 <span style={{
-                  fontFamily: 'Arial,sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: 10.5,
                   fontWeight: 700,
                   letterSpacing: '.14em',
@@ -176,7 +176,7 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
                   Recommendation
                 </span>
                 <span style={{
-                  fontFamily: 'Arial,sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: 11,
                   fontWeight: 700,
                   color: ACCENT,
@@ -194,7 +194,7 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
               </div>
 
               {/* Action — the question text frames the gap */}
-              <p style={{ fontFamily: 'Arial,sans-serif', margin: '0 0 18px', fontSize: 13.5, lineHeight: 1.6, color: '#52606D' }}>
+              <p style={{ fontFamily: 'Georgia, serif', margin: '0 0 18px', fontSize: 13.5, lineHeight: 1.6, color: '#52606D' }}>
                 {question?.question ?? `Improve your ${title.toLowerCase()} to close this gap.`}
               </p>
 
@@ -204,7 +204,7 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
                   {steps.map((s, j) => (
                     <div key={j} style={{ display: 'grid', gridTemplateColumns: '22px 1fr', gap: 11, alignItems: 'start' }}>
                       <span style={{
-                        fontFamily: 'Arial,sans-serif',
+                        fontFamily: 'Georgia, serif',
                         width: 22,
                         height: 22,
                         borderRadius: 999,
@@ -219,7 +219,7 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
                       }}>
                         {j + 1}
                       </span>
-                      <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 13, lineHeight: 1.5, color: '#3D4A57' }}>{s}</span>
+                      <span style={{ fontFamily: 'Georgia, serif', fontSize: 13, lineHeight: 1.5, color: '#3D4A57' }}>{s}</span>
                     </div>
                   ))}
                 </div>
@@ -237,7 +237,7 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column' as const }}>
                   <span style={{
-                    fontFamily: 'Arial,sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: 10,
                     fontWeight: 700,
                     letterSpacing: '.1em',
@@ -246,7 +246,7 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
                   }}>
                     Priority
                   </span>
-                  <span style={{ fontFamily: 'Arial,sans-serif', fontSize: 11.5, color: '#9AA7B3', marginTop: 2 }}>
+                  <span style={{ fontFamily: 'Georgia, serif', fontSize: 11.5, color: '#9AA7B3', marginTop: 2 }}>
                     closing this gap
                   </span>
                 </div>
