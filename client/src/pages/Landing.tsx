@@ -175,14 +175,15 @@ function AssessmentIntro() {
 
           {/* Body paragraphs */}
           <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            Most assessments grade these four areas against best practices — the playbooks that defined SaaS for the last decade. Those playbooks are exactly what the next generation of companies are leaving behind.
+            Most assessments grade you against last decade&rsquo;s playbooks — the ones the best operators are already leaving behind.
           </p>
           <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            This one measures something different: how closely your operation runs on what actually drives each area — and how far that is from where the best operators are already going. Not &ldquo;do you follow the playbook,&rdquo; but{' '}
-            <span style={{ color: INTRO_ACCENT, fontWeight: 600 }}>&ldquo;can you see it, price it, and act on it in time.&rdquo;</span>
+            This one measures what actually drives growth now: not whether you follow the playbook, but{' '}
+            <span style={{ color: INTRO_ACCENT, fontWeight: 600 }}>whether you can see it, price it, and act on it in time</span>
+            {' '}— and how far that is from the frontier.
           </p>
           <p style={{ margin: 0, fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            What you get back isn&rsquo;t a grade against your peers. It&rsquo;s the distance between how you run today and how post-sales runs when it&rsquo;s built for what&rsquo;s coming.
+            What you get back isn&rsquo;t a grade against your peers. It&rsquo;s the distance between how you run today and how post-sales runs when it&rsquo;s built to drive growth, not just defend it.
           </p>
         </div>
 
