@@ -391,7 +391,7 @@ function Landing() {
                 NRR. Measured. Activated.
               </h1>
               <p className="text-slate-300 text-lg sm:text-xl mb-8 leading-relaxed">
-                Most PE-backed SaaS companies track NRR. Few have the capability to move it. This
+                Most B2B technology companies track NRR. Few have the capability to move it. This
                 diagnostic scores your company across Retention, Expansion, and Pricing
                 Optimization — and tells you exactly where the gap is.
               </p>
