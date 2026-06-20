@@ -31,7 +31,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
     estimatedMinutes: 3,
     intro: {
       foundation: "Your NRR is only as good as your ability to trust it, break it apart, and see it now. Most companies treat it as a quarterly finance output — one blended figure, assembled after the close, quietly disputed between teams.",
-      aiNative: "NRR stops being a number you produce once a quarter and becomes one you operate on continuously — current, decomposable to its drivers, and the same everywhere. You're no longer reporting the past; you're steering on the present.",
+      aiNative: "NRR stops being a quarterly number you report and becomes a live signal you steer by — current, decomposable to its drivers, and predictive. You see where it's heading and act before it moves, not after the quarter closes.",
     },
     questions: [
       {

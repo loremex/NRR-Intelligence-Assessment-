@@ -91,7 +91,7 @@ export function CapabilityIntroScreen({ cap, direction, onContinue, onBack }: Pr
           </p>
         </div>
 
-        {/* What AI-native changes */}
+        {/* What the frontier looks like */}
         <div
           className="nrr-anim"
           style={{
@@ -113,7 +113,7 @@ export function CapabilityIntroScreen({ cap, direction, onContinue, onBack }: Pr
             color: '#2563EB',
             margin: '0 0 9px',
           }}>
-            What AI-native changes
+            What the frontier looks like
           </p>
           <p style={{
             fontFamily: font,
