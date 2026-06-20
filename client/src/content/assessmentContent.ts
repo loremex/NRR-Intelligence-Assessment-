@@ -125,7 +125,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
     estimatedMinutes: 3,
     intro: {
       foundation: "Expansion is earned, not sold. It needs three things true at once: the account is healthy, it's already getting more than it pays for, and there's room left to grow. Push without them and you accelerate churn.",
-      aiNative: "Health used to be a gut call, surplus a story, whitespace whatever a rep spotted — so expansion got pushed on a quota clock. Now readiness is visible across the whole base, and expansion surfaces itself instead of being chased.",
+      aiNative: "Expansion used to ride on a rep's read of the room. Now it's sensed where value will outgrow price before the customer asks, surfaced inside their workflow — so it pulls itself from the accounts already ready, instead of being sold.",
     },
     questions: [
       {
