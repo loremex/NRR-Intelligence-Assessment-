@@ -10,10 +10,10 @@ import { track, identifyUser } from '../lib/analytics'
 const INTRO_ACCENT = '#2563EB'
 
 const INTRO_AREAS = [
-  { tag: 'Measure', title: 'NRR Reporting', icon: 'report', role: 'The foundation', desc: 'Knowing your true net revenue retention — cleanly, by segment, in real time — before you try to move it.' },
-  { tag: 'Protect', title: 'Revenue Retention', icon: 'retain', role: 'Hold the base', desc: 'Reducing churn and contraction by catching risk early and turning saves into a repeatable motion.' },
-  { tag: 'Grow', title: 'Revenue Expansion', icon: 'expand', role: 'Grow within', desc: 'Unlocking upsell, cross-sell, and seat growth inside the accounts you already retain.' },
-  { tag: 'Capture', title: 'Pricing Optimization', icon: 'price', role: 'Capture value', desc: 'Aligning price and packaging to the value you deliver, tested with discipline rather than intuition.' },
+  { tag: 'Measure', title: 'NRR Reporting', icon: 'report', role: 'The foundation', desc: 'Knowing your true NRR — live, decomposed, and predictive — so you see where it\'s heading and act before it moves.' },
+  { tag: 'Protect', title: 'Revenue Retention', icon: 'retain', role: 'Hold the base', desc: 'Keeping impact ahead of price, sensed continuously, so drift is caught and corrected before the customer feels it.' },
+  { tag: 'Grow', title: 'Revenue Expansion', icon: 'expand', role: 'Grow within', desc: 'Sensing where value will outgrow price, so expansion pulls itself from the accounts already ready for it.' },
+  { tag: 'Capture', title: 'Pricing Optimization', icon: 'price', role: 'Capture value', desc: 'Keeping unit price tracking cost and impact continuously, so margin is protected as it moves, not recovered after.' },
 ] as const
 
 function introIcon(name: string) {
