@@ -4,8 +4,6 @@ import { AssessmentStateProvider } from './lib/state'
 import { track, initAnalytics } from './lib/analytics'
 import Landing from './pages/Landing'
 import Calculator from './pages/Calculator'
-import DiagnosticQuestions from './pages/DiagnosticQuestions'
-import DiagnosticVerdict from './pages/DiagnosticVerdict'
 import Selection from './pages/Selection'
 import Assessment from './pages/Assessment'
 import Scorecard from './pages/Scorecard'
@@ -13,8 +11,6 @@ import Scorecard from './pages/Scorecard'
 const ROUTE_NAMES: Record<string, string> = {
   '/': 'landing',
   '/calculator': 'calculator',
-  '/diagnostic': 'diagnostic_questions',
-  '/diagnostic-result': 'diagnostic_verdict',
   '/selection': 'selection',
   '/assessment': 'assessment',
   '/scorecard': 'scorecard',
@@ -41,8 +37,6 @@ function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/calculator" element={<Calculator />} />
-          <Route path="/diagnostic" element={<DiagnosticQuestions />} />
-          <Route path="/diagnostic-result" element={<DiagnosticVerdict />} />
           <Route path="/selection" element={<Selection />} />
           <Route path="/assessment" element={<Assessment />} />
           <Route path="/scorecard" element={<Scorecard />} />

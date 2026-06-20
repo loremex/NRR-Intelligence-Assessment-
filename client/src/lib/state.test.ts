@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { assessmentReducer, defaultState, loadFromStorage, DEFAULT_DIAGNOSTIC_ANSWERS, type CapKey } from './state'
-import { computeDiagnosticScores } from '../content/diagnosticTemplates'
+import { assessmentReducer, defaultState, loadFromStorage, type CapKey } from './state'
 
 const STORAGE_KEY = 'loremex_assessment_state_v8'
 
@@ -10,8 +9,6 @@ describe('assessmentReducer', () => {
     expect(defaultState.email).toBeNull()
     expect(defaultState.sessionId).toBeNull()
     expect(defaultState.selectedCapabilities).toEqual([])
-    expect(defaultState.preSelectedCapabilities).toEqual([])
-    expect(defaultState.diagnosticAnswers).toBeNull()
     expect(defaultState.nrrCalculatorSkipped).toBe(false)
     expect(defaultState.completedSections).toEqual([])
   })
@@ -146,54 +143,6 @@ describe('assessmentReducer', () => {
     expect(s3.completedSections).toHaveLength(2)
   })
 
-  it('SET_DIAGNOSTIC_BLOCK_CHOICE initialises diagnosticAnswers and sets choice (1-5)', () => {
-    const state = assessmentReducer(defaultState, {
-      type: 'SET_DIAGNOSTIC_BLOCK_CHOICE',
-      block: 'q1_reporting',
-      choice: 5,
-    })
-    expect(state.diagnosticAnswers?.q1_reporting.choice).toBe(5)
-    expect(state.diagnosticAnswers?.q2_retention.choice).toBeNull()
-  })
-
-  it('SET_DIAGNOSTIC_BLOCK_TEXT sets freeText on a block', () => {
-    const s1 = assessmentReducer(defaultState, {
-      type: 'SET_DIAGNOSTIC_BLOCK_CHOICE',
-      block: 'q2_retention',
-      choice: 2,
-    })
-    const state = assessmentReducer(s1, {
-      type: 'SET_DIAGNOSTIC_BLOCK_TEXT',
-      block: 'q2_retention',
-      text: 'We track renewal dates in a spreadsheet',
-    })
-    expect(state.diagnosticAnswers?.q2_retention.freeText).toBe('We track renewal dates in a spreadsheet')
-  })
-
-  it('SET_DIAGNOSTIC_PRIORITY_CHOICE sets q5 choice', () => {
-    const state = assessmentReducer(defaultState, {
-      type: 'SET_DIAGNOSTIC_PRIORITY_CHOICE',
-      choice: 'retention',
-    })
-    expect(state.diagnosticAnswers?.q5_priority.choice).toBe('retention')
-  })
-
-  it('SET_DIAGNOSTIC_ANYTHING_ELSE sets q6 freeText', () => {
-    const state = assessmentReducer(defaultState, {
-      type: 'SET_DIAGNOSTIC_ANYTHING_ELSE',
-      text: 'We recently lost a key account',
-    })
-    expect(state.diagnosticAnswers?.q6_anything_else.freeText).toBe('We recently lost a key account')
-  })
-
-  it('SET_PRE_SELECTED_CAPABILITIES sets array', () => {
-    const state = assessmentReducer(defaultState, {
-      type: 'SET_PRE_SELECTED_CAPABILITIES',
-      capabilities: ['retention', 'reporting'],
-    })
-    expect(state.preSelectedCapabilities).toEqual(['retention', 'reporting'])
-  })
-
   it('RESET_ALL returns to exact default state', () => {
     const withData = assessmentReducer(defaultState, {
       type: 'SET_EMAIL',
@@ -272,54 +221,3 @@ describe('loadFromStorage', () => {
   })
 })
 
-describe('computeDiagnosticScores', () => {
-  function makeAnswers(q1: 1|2|3|4|5, q2: 1|2|3|4|5, q3: 1|2|3|4|5, q4: 1|2|3|4|5) {
-    return {
-      ...DEFAULT_DIAGNOSTIC_ANSWERS,
-      q1_reporting: { choice: q1 as 1|2|3|4|5, freeText: null },
-      q2_retention: { choice: q2 as 1|2|3|4|5, freeText: null },
-      q3_expansion: { choice: q3 as 1|2|3|4|5, freeText: null },
-      q4_pricing:   { choice: q4 as 1|2|3|4|5, freeText: null },
-    }
-  }
-
-  it('returns null when any block choice is null', () => {
-    expect(computeDiagnosticScores(DEFAULT_DIAGNOSTIC_ANSWERS)).toBeNull()
-  })
-
-  it('Q1=2 Q2=1 Q3=3 Q4=2 → weakestBlock=retention, maturityStage=Diagnostic, avg=2.0', () => {
-    const result = computeDiagnosticScores(makeAnswers(2, 1, 3, 2))
-    expect(result).not.toBeNull()
-    expect(result!.weakestBlock).toBe('retention')
-    expect(result!.blockScores.retention).toBe(1)
-    expect(result!.maturityStage).toBe('Diagnostic')
-    expect(result!.overallAvg).toBe(2.0)
-  })
-
-  it('Q1=5 Q2=5 Q3=5 Q4=5 → weakestBlock=reporting (tiebreaker), maturityStage=Intelligent', () => {
-    const result = computeDiagnosticScores(makeAnswers(5, 5, 5, 5))
-    expect(result!.weakestBlock).toBe('reporting')
-    expect(result!.maturityStage).toBe('Intelligent')
-    expect(result!.overallAvg).toBe(5.0)
-  })
-
-  it('Q1=3 Q2=3 Q3=3 Q4=3 → maturityStage=Operational, avg=3.0', () => {
-    const result = computeDiagnosticScores(makeAnswers(3, 3, 3, 3))
-    expect(result!.maturityStage).toBe('Operational')
-    expect(result!.overallAvg).toBe(3.0)
-  })
-
-  it('Q1=4 Q2=4 Q3=5 Q4=5 → maturityStage=Intelligent, avg=4.5', () => {
-    const result = computeDiagnosticScores(makeAnswers(4, 4, 5, 5))
-    expect(result!.maturityStage).toBe('Intelligent')
-    expect(result!.overallAvg).toBe(4.5)
-  })
-
-  it('Q1=1 Q2=2 Q3=3 Q4=4 → weakestBlock=reporting, blockScores.reporting=1, maturityStage=Diagnostic, avg=2.5', () => {
-    const result = computeDiagnosticScores(makeAnswers(1, 2, 3, 4))
-    expect(result!.weakestBlock).toBe('reporting')
-    expect(result!.blockScores.reporting).toBe(1)
-    expect(result!.maturityStage).toBe('Diagnostic')
-    expect(result!.overallAvg).toBe(2.5)
-  })
-})

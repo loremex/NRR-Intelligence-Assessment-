@@ -60,7 +60,7 @@ function Assessment() {
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <span className="font-display font-bold text-xl text-white tracking-tight">Loremex</span>
-          <span className="text-slate-400 text-sm">Step 4 of 5</span>
+          <span className="text-slate-400 text-sm">Step 4 of 4</span>
         </div>
       </nav>
 

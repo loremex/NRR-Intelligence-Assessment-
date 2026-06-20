@@ -244,13 +244,13 @@ function Calculator() {
         nrr_band: finalResult.band?.label ?? 'unknown',
       },
     })
-    navigate('/diagnostic')
+    navigate('/selection')
   }
 
   function handleSkipConfirm() {
     dispatch({ type: 'SKIP_NRR_CALCULATOR' })
     track({ name: 'nrr_calculator_skipped', props: {} })
-    navigate('/diagnostic')
+    navigate('/selection')
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ function Calculator() {
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <span className="font-display font-bold text-xl text-white tracking-tight">Loremex</span>
-          <span className="text-slate-400 text-sm">Step 2 of 5</span>
+          <span className="text-slate-400 text-sm">Step 2 of 4</span>
         </div>
       </nav>
 
