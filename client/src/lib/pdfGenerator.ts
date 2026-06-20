@@ -40,6 +40,7 @@ export interface PDFParams {
   grr: number | null
   netMovementDollars: number | null
   netMovementPct: number | null
+  leakDollars: number | null
   reportingMaturity: number | null
   overallIntelligence: number | null
   distanceToL5: number | null
@@ -226,6 +227,103 @@ export function generateScorecardPDF(params: PDFParams): Blob {
 
   thinRule(doc, y)
   y += 5
+
+  // Section 0: What This Is Costing You
+  if (params.leakDollars !== null && params.leakDollars > 0 && params.nrr !== null && params.grr !== null) {
+    y = sectionHeader(doc, 'WHAT THIS IS COSTING YOU', y)
+
+    const leak = params.leakDollars
+    const net = params.netMovementDollars ?? 0
+    const expD = net + leak
+    const nrrPct = (params.nrr * 100).toFixed(1)
+    const grrPct = (params.grr * 100).toFixed(1)
+
+    const fmt = (n: number): string => {
+      const abs = Math.abs(n)
+      if (abs >= 1_000_000) return `$${(abs / 1_000_000).toFixed(1)}M`
+      if (abs >= 1_000) return `$${(abs / 1_000).toFixed(0)}K`
+      return `$${abs.toFixed(0)}`
+    }
+
+    let leakVariant: 'net-positive' | 'net-negative' | 'minimal-leak'
+    if (params.grr >= 0.95) leakVariant = 'minimal-leak'
+    else if (params.nrr >= 1.0) leakVariant = 'net-positive'
+    else leakVariant = 'net-negative'
+
+    const leakFmt = fmt(leak)
+    const expFmt = fmt(expD)
+
+    const leakCopy: Record<typeof leakVariant, { headline: string; body: string }> = {
+      'net-positive': {
+        headline: `You retained net positive this quarter — but ${leakFmt} walked out the door.`,
+        body: `Expansion (${expFmt}) more than covered it, so NRR reads ${nrrPct}% — healthy on paper. But ${leakFmt} left the base this quarter through contraction and churn. That's the number the net hides.`,
+      },
+      'net-negative': {
+        headline: `Your leak outran expansion this quarter — ${leakFmt} walked out the door.`,
+        body: `With NRR at ${nrrPct}%, contraction and churn are outpacing expansion. ${leakFmt} left the base — and net revenue shrank. [Final copy TBD]`,
+      },
+      'minimal-leak': {
+        headline: `You've largely closed the leak — ${leakFmt} left the base this quarter.`,
+        body: `With GRR at ${grrPct}%, contraction and churn are well-controlled. [Final copy TBD]`,
+      },
+    }
+
+    const { headline, body } = leakCopy[leakVariant]
+
+    doc.setFontSize(9.5)
+    doc.setTextColor(...N800)
+    doc.setFont('helvetica', 'bold')
+    const headlineLines = doc.splitTextToSize(headline, pageWidth - 28) as string[]
+    doc.text(headlineLines, 14, y)
+    y += headlineLines.length * 5 + 2
+
+    doc.setFontSize(8)
+    doc.setTextColor(...DARK)
+    doc.setFont('helvetica', 'normal')
+    const bodyLines = doc.splitTextToSize(body, pageWidth - 28) as string[]
+    doc.text(bodyLines, 14, y)
+    y += bodyLines.length * 4.5 + 3
+
+    // Leak amount tile (inline text row)
+    doc.setFontSize(8)
+    doc.setTextColor(...GRAY)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Quarterly Leak: `, 14, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...N800)
+    doc.text(leakFmt, 14 + 28, y)
+    doc.setTextColor(...GRAY)
+    doc.text('  (contraction + churn)', 14 + 28 + 12, y)
+    y += 5
+
+    // Top 3 weakest cells
+    const allQs = params.capabilities.flatMap((cap) =>
+      cap.questions.map((q) => ({ capName: cap.name, title: q.title, score: q.score, gap: q.gapToL5 }))
+    )
+    const top3 = allQs.filter((q) => q.score !== null).sort((a, b) => (a.score ?? 99) - (b.score ?? 99)).slice(0, 3)
+
+    if (top3.length > 0) {
+      doc.setFontSize(7.5)
+      doc.setTextColor(...GRAY)
+      doc.setFont('helvetica', 'bold')
+      doc.text('WHERE YOUR LEAK IS CONCENTRATED', 14, y)
+      doc.setFont('helvetica', 'normal')
+      y += 4
+
+      for (const q of top3) {
+        const line = `• ${q.title} (${q.capName}) — L${q.score?.toFixed(0) ?? '—'}, +${q.gap?.toFixed(0) ?? '—'} to L5`
+        doc.setFontSize(8)
+        doc.setTextColor(...DARK)
+        const qLines = doc.splitTextToSize(line, pageWidth - 22) as string[]
+        doc.text(qLines, 18, y)
+        y += qLines.length * 4.5
+      }
+      y += 2
+    }
+
+    thinRule(doc, y)
+    y += 5
+  }
 
   // Section 1: Diagnostic Inputs
   if (params.diagnosticAnswers !== null) {

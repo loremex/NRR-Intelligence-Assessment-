@@ -30,6 +30,7 @@ export interface NRRResult {
   grr: number | null
   netMovementDollars: number | null
   netMovementPct: number | null
+  leakDollars: number | null
   band: NRRBand | null
 }
 
@@ -40,7 +41,7 @@ function toDollars(value: number, mode: NRRMode, startingMRR: number): number {
 export function computeNRR(inputs: NRRInputs): NRRResult {
   const { mode, startingMRR, expansion, contraction, churn } = inputs
   const nullResult: NRRResult = {
-    nrr: null, grr: null, netMovementDollars: null, netMovementPct: null, band: null,
+    nrr: null, grr: null, netMovementDollars: null, netMovementPct: null, leakDollars: null, band: null,
   }
 
   if (!startingMRR || startingMRR <= 0) return nullResult
@@ -54,10 +55,11 @@ export function computeNRR(inputs: NRRInputs): NRRResult {
   const grr = (startingMRR - conD - churnD) / startingMRR
   const netMovementDollars = expD - conD - churnD
   const netMovementPct = netMovementDollars / startingMRR
+  const leakDollars = conD + churnD
 
   const band = NRR_BANDS.find((b) => nrr >= b.threshold) ?? NRR_BANDS[NRR_BANDS.length - 1] ?? null
 
-  return { nrr, grr, netMovementDollars, netMovementPct, band }
+  return { nrr, grr, netMovementDollars, netMovementPct, leakDollars, band }
 }
 
 export function formatCurrency(n: number, opts?: { compact?: boolean }): string {

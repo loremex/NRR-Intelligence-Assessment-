@@ -17,6 +17,7 @@ import type { PDFParams, PDFCapabilityData } from '../lib/pdfGenerator'
 import { completeSession, type ScorecardPayload } from '../lib/api'
 import { RecommendationBlock } from '../components/scorecard/RecommendationBlock'
 import { CapabilitySummary } from '../components/scorecard/CapabilitySummary'
+import { CostSection } from '../components/scorecard/CostSection'
 import { V3_ASSESSMENT_CONTENT, CAP_ORDER } from '../content/assessmentContent'
 
 // ── Color helpers ──────────────────────────────────────────────────────────────
@@ -209,6 +210,7 @@ function Scorecard() {
       grr: nrrResult?.grr ?? null,
       netMovementDollars: nrrResult?.netMovementDollars ?? null,
       netMovementPct: nrrResult?.netMovementPct ?? null,
+      leakDollars: nrrResult?.leakDollars ?? null,
       reportingMaturity: reportingScore,
       overallIntelligence,
       distanceToL5: overallIntelligence !== null ? 5 - overallIntelligence : null,
@@ -264,6 +266,7 @@ function Scorecard() {
       grr: scorecardPayload.grr,
       netMovementDollars: nrrResult?.netMovementDollars ?? null,
       netMovementPct: nrrResult?.netMovementPct ?? null,
+      leakDollars: nrrResult?.leakDollars ?? null,
       reportingMaturity: scorecardPayload.reportingMaturity,
       overallIntelligence,
       distanceToL5: scorecardPayload.distanceToL5,
@@ -398,6 +401,14 @@ function Scorecard() {
             A live read of where your revenue engine stands — and what moving each lever is worth.
           </p>
         </div>
+
+        {/* What This Is Costing You */}
+        <CostSection
+          nrrResult={nrrResult}
+          pooledTop3={pooledTop3}
+          picks={picks}
+          selectedCaps={sections}
+        />
 
         {/* KPI tiles */}
         <div data-reveal="kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 16 }}>
