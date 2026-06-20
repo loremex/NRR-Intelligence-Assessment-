@@ -373,9 +373,7 @@ function Landing() {
       {/* ── Nav ──────────────────────────────────────────────────────── */}
       <nav className="bg-navy px-6 py-4">
         <div className="max-w-5xl mx-auto">
-          <span className="font-display font-bold text-xl text-white tracking-tight">
-            Loremex
-          </span>
+          <img src="/loremex-logo-blue.png" alt="Loremex" style={{ height: 24, width: 'auto', filter: 'brightness(0) invert(1)', display: 'block' }} />
         </div>
       </nav>
 
@@ -533,7 +531,7 @@ function Landing() {
       {/* ── Footer ───────────────────────────────────────────────────── */}
       <footer className="bg-navy px-6 py-8">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="font-display font-bold text-white">Loremex</span>
+          <img src="/loremex-logo-blue.png" alt="Loremex" style={{ height: 20, width: 'auto', filter: 'brightness(0) invert(1)', display: 'block' }} />
           <p className="text-sm text-slate-500">
             &copy; {new Date().getFullYear()} Loremex. All rights reserved.
           </p>

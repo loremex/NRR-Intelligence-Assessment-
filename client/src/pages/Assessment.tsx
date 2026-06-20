@@ -103,9 +103,7 @@ function Assessment() {
       {/* Nav bar */}
       <nav style={{ background: '#0E2B41', padding: '14px 24px' }}>
         <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: font, fontWeight: 700, fontSize: 18, color: '#FFFFFF' }}>
-            Loremex
-          </span>
+          <img src="/loremex-logo-blue.png" alt="Loremex" style={{ height: 24, width: 'auto', filter: 'brightness(0) invert(1)', display: 'block' }} />
           <span style={{ fontFamily: font, fontSize: 13, color: 'rgba(255,255,255,.4)' }}>
             Step 4 of 4
           </span>

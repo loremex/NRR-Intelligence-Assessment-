@@ -393,7 +393,7 @@ function Scorecard() {
       {/* Nav */}
       <nav style={{ background: '#002337', padding: '16px 24px' }}>
         <div style={{ maxWidth: 1080, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: 20, color: '#FFFFFF', letterSpacing: '-0.01em' }}>Loremex</span>
+          <img src="/loremex-logo-blue.png" alt="Loremex" style={{ height: 26, width: 'auto', filter: 'brightness(0) invert(1)', display: 'block' }} />
           <span style={{ color: '#94A3B8', fontSize: 14 }}>NRR Intelligence Assessment</span>
         </div>
       </nav>
