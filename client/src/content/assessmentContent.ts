@@ -172,7 +172,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
     estimatedMinutes: 3,
     intro: {
       foundation: "Price is right only when it tracks both what it costs you to deliver and the impact the customer gets. Most pricing tracks neither — set once, frozen till renewal, leaking margin or value the whole time.",
-      aiNative: "Cost-to-deliver now moves underneath you, and delivered impact can finally be measured live. So both gaps can be caught as they open. Pricing stops being a number you defend and becomes an engine that re-optimizes as cost and value move.",
+      aiNative: "Price used to be set once and frozen till renewal, leaking margin the whole time. Now unit price tracks cost-to-deliver and delivered impact continuously across the customer's life — margin protected as it moves, not recovered after it's gone.",
     },
     questions: [
       {
