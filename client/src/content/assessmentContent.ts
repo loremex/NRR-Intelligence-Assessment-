@@ -2,6 +2,35 @@ import type { CapKey } from '../lib/state'
 
 export const CAP_ORDER: CapKey[] = ['reporting', 'retention', 'expansion', 'pricing']
 
+// Capability-specific level descriptions. null = fall back to the generic LEVEL_DESCS in CapabilitySummary.
+// Index matches level number (0 unused, 1–5 active).
+export const CAP_LEVEL_DESCS: Partial<Record<CapKey, (string | null)[]>> = {
+  retention: [
+    null,
+    null,
+    null,
+    null,
+    "The impact each customer is getting — and whether it's still outrunning price — surfaces on its own and drives action before the outcome slips, not dependent on who's watching.",
+    null,
+  ],
+  expansion: [
+    null,
+    'Expansion is pure push — reps chase whatever they happen to spot, with no read on whether the account is actually ready.',
+    "You know expansion needs health, surplus, and headroom, but it still runs on reps pushing their own accounts. No portfolio view of who's ready.",
+    'Readiness can be assembled per account, but only by hand — so expansion is still pushed on a quota clock, not pulled by signal.',
+    'Readiness and unsold value surface on their own and point to the right accounts — push becomes targeted, driven by signal rather than territory.',
+    'Readiness and headroom are sensed continuously, so expansion pulls itself to the accounts already ready — the motion flips from selling to being drawn.',
+  ],
+  pricing: [
+    null,
+    'Pricing is a one-time decision — set by seats, cost-plus, or market rate, then frozen. Nothing senses whether it still fits cost or impact.',
+    'You know price should track cost and impact, but pricing is still an event — packaging and negotiation, revisited only when a deal comes up.',
+    "You can audit where price has drifted from cost-to-serve and delivered impact, but only periodically, by hand — pricing isn't yet a running function.",
+    'Price drift surfaces on its own as it opens, so over- and under-priced accounts are visible as the relationship runs — pricing starts operating, not just resetting at renewal.',
+    'Pricing runs as a live capability — drift from cost and impact is sensed continuously and captured systematically at every renewal, so price tracks reality instead of being defended once a year.',
+  ],
+}
+
 export interface V3Scenario {
   text: string
 }

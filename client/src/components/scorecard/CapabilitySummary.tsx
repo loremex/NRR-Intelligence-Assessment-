@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { getCapabilityScore, getCellScore, type AllPicks } from '../../lib/scoring'
 import type { CapKey } from '../../lib/state'
-import { V3_ASSESSMENT_CONTENT } from '../../content/assessmentContent'
+import { V3_ASSESSMENT_CONTENT, CAP_LEVEL_DESCS } from '../../content/assessmentContent'
 
 const LEVEL_NAMES = [
   '',
@@ -20,6 +20,10 @@ const LEVEL_DESCS = [
   'The signal surfaces on its own and drives decisions.',
   'Sensed, predicted, acted on continuously, no lag.',
 ]
+
+function getDesc(capKey: CapKey, level: number): string {
+  return CAP_LEVEL_DESCS[capKey]?.[level] ?? LEVEL_DESCS[level]
+}
 
 const ACCENT = '#2563EB'
 
@@ -177,7 +181,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
               color: '#52606D',
               maxWidth: 360,
             }}>
-              {LEVEL_DESCS[lvl]}
+              {getDesc(selCapKey, lvl)}
             </p>
 
             {/* Horizontal level ladder */}
@@ -222,7 +226,7 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
                     {LEVEL_NAMES[lvl]}
                   </div>
                   <div style={{ fontFamily: 'Georgia, serif', fontSize: 12.5, lineHeight: 1.5, color: '#6B7B89', marginTop: 2 }}>
-                    {LEVEL_DESCS[lvl]}
+                    {getDesc(selCapKey, lvl)}
                   </div>
                 </div>
               </div>
@@ -254,8 +258,8 @@ export function CapabilitySummary({ picks, selectedCaps }: CapabilitySummaryProp
 
             <p style={{ fontFamily: 'Georgia, serif', margin: '0 0 16px', fontSize: 13.5, lineHeight: 1.6, color: '#3D4A57' }}>
               {atTop
-                ? "You’re already operating at the top of the ladder — the focus shifts to holding the edge as the market moves."
-                : LEVEL_DESCS[nextLvl]}
+                ? "You're already operating at the top of the ladder — the focus shifts to holding the edge as the market moves."
+                : getDesc(selCapKey, nextLvl)}
             </p>
 
             {/* Directional tile — replaces the fabricated "+X pts" tile */}
