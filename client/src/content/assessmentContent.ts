@@ -113,7 +113,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       {
         id: 'q1',
         title: 'Time to impact',
-        question: "How quickly does a new customer reach the point where what they're getting clearly outweighs what they're paying — and do you actually know that moment per customer?",
+        question: "How quickly does your solution deliver a clear outcome — impact the customer can feel — and do you know when that lands, per account?",
         scenarios: [
           { text: "We don't think about it that way. We assume impact builds over time and check in at renewal." },
           { text: 'We have a rough sense of onboarding speed, but "time to impact" isn\'t something we measure.' },
@@ -219,25 +219,25 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       {
         id: 'q2',
         title: 'Price-to-impact correlation',
-        question: "As the value a customer gets changes over time, does their price keep pace — or does it stay fixed until the next renewal?",
+        question: "As the impact a customer gets changes over time, does their price keep pace — or does it stay fixed until the next renewal?",
         scenarios: [
           { text: "Price is set by seats, tiers, or market rates. It isn't connected to the impact a given customer actually gets, and it holds until the next renewal." },
           { text: "We'd like price to reflect value, but in practice it tracks packaging and negotiation — and we only revisit it when a deal comes up." },
           { text: "We can see whether price and impact are aligned per customer, but only when we go looking — it's a periodic, manual check." },
           { text: "Price is set against delivered impact and the gap surfaces as it opens, so over- and under-priced customers are visible as the relationship runs." },
-          { text: "Unit price is mechanically coupled to a unit of impact and stays correlated continuously — price reflects what the customer actually gets, by design." },
+          { text: "Pricing runs as a live capability — price is sensed against cost and impact continuously and corrected toward, so it tracks what the customer actually gets instead of being set once and defended." },
         ],
       },
       {
         id: 'q3',
         title: 'Renewal lock-in',
-        question: "At renewal, do you reset price to match the impact you're now delivering — capturing the value gap that's opened up — or does the old price mostly roll forward?",
+        question: "At renewal, do you reset price to match the impact you're now delivering — capturing the impact gap that's opened up — or does the old price mostly roll forward?",
         scenarios: [
           { text: "Renewals roll forward at the prior price, maybe a standard uplift. The value gap that's opened isn't captured." },
-          { text: "We push for increases where we have leverage, but it's negotiation, not a reset to current delivered value." },
-          { text: "We can quantify the value gap at renewal, but acting on it depends on the deal and the rep." },
+          { text: "We push for increases where we have leverage, but it's negotiation, not a reset to current delivered impact." },
+          { text: "We can quantify the impact gap at renewal, but acting on it depends on the deal and the rep." },
           { text: "Renewal price is reset against current delivered impact as a matter of course, so the gap gets captured each cycle." },
-          { text: "Repricing to current impact is systematic and locked in at every renewal — the value you've built is captured automatically, not left on the table." },
+          { text: "Repricing to current impact is systematic and locked in at every renewal — the impact you've built is captured automatically, not left on the table." },
         ],
       },
     ],
