@@ -173,17 +173,9 @@ function AssessmentIntro() {
             Measured against where post-sales is headed — not where it&rsquo;s been.
           </p>
 
-          {/* Body paragraphs */}
-          <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            Most assessments grade you against last decade&rsquo;s playbooks — the ones the best operators are already leaving behind.
-          </p>
-          <p style={{ margin: '0 0 16px', fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            This one measures what actually drives growth now: not whether you follow the playbook, but{' '}
-            <span style={{ color: INTRO_ACCENT, fontWeight: 600 }}>whether you can see it, price it, and act on it in time</span>
-            {' '}— and how far that is from the frontier.
-          </p>
+          {/* Body paragraph */}
           <p style={{ margin: 0, fontSize: 17, lineHeight: 1.68, color: '#52606D', fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            What you get back isn&rsquo;t a grade against your peers. It&rsquo;s the distance between how you run today and how post-sales runs when it&rsquo;s built to drive growth, not just defend it.
+            Post-sales is where enterprise value is won or lost now. This measures whether you can see it, price it, and act on it in time — and how far that is from the frontier.
           </p>
         </div>
 
