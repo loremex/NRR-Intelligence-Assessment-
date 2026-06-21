@@ -65,7 +65,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
     questions: [
       {
         id: 'q1',
-        title: 'Truth and confidence',
+        title: 'Confidence Score',
         question: "If the board asked for your NRR right now, how confident are you it's correct — that it would survive an audit, and that two teams pulling it would land on the same number?",
         scenarios: [
           { text: "We'd produce a number, but it's assembled and caveated. Different teams would likely get different figures." },
@@ -89,7 +89,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       },
       {
         id: 'q3',
-        title: 'Liveness',
+        title: 'NRR Signal',
         question: "Is your NRR a current signal you can see and act on today — or a backward-looking figure you assemble after the quarter closes?",
         scenarios: [
           { text: "We see NRR after the quarter closes. It describes what already happened." },
@@ -112,7 +112,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
     questions: [
       {
         id: 'q1',
-        title: 'Time to impact',
+        title: 'Time-To-Impact',
         question: "How quickly does your solution deliver a clear outcome — impact the customer can feel — and do you know when that lands, per account?",
         scenarios: [
           { text: "We don't think about it that way. We assume impact builds over time and check in at renewal." },
@@ -124,7 +124,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       },
       {
         id: 'q2',
-        title: 'Impact compounding',
+        title: 'Impact-Over-Time',
         question: "Over the life of a customer, does the impact you deliver keep growing — or does it flatten after the first year? And can you see which is happening, per account?",
         scenarios: [
           { text: "We assume mature customers are getting steady impact. We don't track whether it's still growing." },
@@ -136,7 +136,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       },
       {
         id: 'q3',
-        title: 'Price-to-impact over time',
+        title: 'Impact Measurement',
         question: "As a customer matures and you raise price, does the impact they get grow faster than the price — so the deal feels better to them every year, not worse?",
         scenarios: [
           { text: "We raise price at renewal where we can. Whether impact outpaced it isn't something we quantify." },
@@ -159,7 +159,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
     questions: [
       {
         id: 'q1',
-        title: 'Expansion readiness',
+        title: 'Expansion Readiness',
         question: "Before you pursue expansion in an account, do you actually know it's healthy — getting value, low-risk, on solid ground — or could you be selling more into an account that's quietly slipping?",
         scenarios: [
           { text: "We pursue expansion where we see opportunity. Whether the account is truly healthy underneath isn't part of the decision." },
@@ -171,7 +171,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       },
       {
         id: 'q2',
-        title: 'Value surplus',
+        title: 'Value Surplus',
         question: "Is the customer already getting visibly more than they pay for — a surplus they can feel — so that more of what you do is obviously worth more to them?",
         scenarios: [
           { text: "We don't know if they're in surplus. We assume the value is there if they're not complaining." },
@@ -183,7 +183,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       },
       {
         id: 'q3',
-        title: 'Room to grow',
+        title: 'Room-To-Grow',
         question: "For each customer, do you know specifically what they don't have yet that would deliver them more value — the products, capacity, or use cases they haven't bought — or is expansion just whatever a rep happens to spot?",
         scenarios: [
           { text: "We don't map this. Expansion is whatever opportunity a rep notices in the moment." },
@@ -206,7 +206,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
     questions: [
       {
         id: 'q1',
-        title: 'Cost-to-deliver responsiveness',
+        title: 'Unit Economics',
         question: "As the cost to deliver your solution changes — compute, infrastructure, the economics of running it — does your pricing adjust to protect unit economics, or is price set independently of what it actually costs you to deliver?",
         scenarios: [
           { text: "Price is set without much reference to delivery cost. If our cost to serve moves, pricing doesn't respond." },
@@ -218,7 +218,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       },
       {
         id: 'q2',
-        title: 'Price-to-impact correlation',
+        title: 'Price-To-Impact',
         question: "As the impact a customer gets changes over time, does their price keep pace — or does it stay fixed until the next renewal?",
         scenarios: [
           { text: "Price is set by seats, tiers, or market rates. It isn't connected to the impact a given customer actually gets, and it holds until the next renewal." },
@@ -230,7 +230,7 @@ export const V3_ASSESSMENT_CONTENT: V3CapabilityContent[] = [
       },
       {
         id: 'q3',
-        title: 'Renewal lock-in',
+        title: 'Live Repricing',
         question: "At renewal, do you reset price to match the impact you're now delivering — capturing the impact gap that's opened up — or does the old price mostly roll forward?",
         scenarios: [
           { text: "Renewals roll forward at the prior price, maybe a standard uplift. The value gap that's opened isn't captured." },
