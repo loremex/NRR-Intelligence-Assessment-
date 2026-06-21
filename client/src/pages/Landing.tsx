@@ -54,7 +54,7 @@ function AssessmentIntro() {
   const [hovered, setHovered] = useState<number | null>(null)
   const [swept, setSwept] = useState(false)
   const [dotActive, setDotActive] = useState([false, false, false, false])
-  const [cardPhase, setCardPhase] = useState<Array<'hidden' | 'entering' | 'pulsing' | 'settled'>>([
+  const [cardPhase, setCardPhase] = useState<Array<'hidden' | 'pulsing' | 'settled'>>([
     'hidden', 'hidden', 'hidden', 'hidden',
   ])
   const rootRef = useRef<HTMLDivElement>(null)
@@ -80,13 +80,10 @@ function AssessmentIntro() {
           CARD_DELAYS.forEach((delay, i) => {
             setTimeout(() => {
               setDotActive(prev => { const n = [...prev]; n[i] = true; return n })
-              setCardPhase(prev => { const n = [...prev]; n[i] = 'entering'; return n })
+              setCardPhase(prev => { const n = [...prev]; n[i] = 'pulsing'; return n })
               setTimeout(() => {
-                setCardPhase(prev => { const n = [...prev]; n[i] = 'pulsing'; return n })
-                setTimeout(() => {
-                  setCardPhase(prev => { const n = [...prev]; n[i] = 'settled'; return n })
-                }, 400)
-              }, 80)
+                setCardPhase(prev => { const n = [...prev]; n[i] = 'settled'; return n })
+              }, 380)
             }, delay)
           })
         }
@@ -257,9 +254,9 @@ function AssessmentIntro() {
                     padding: '26px 24px 28px',
                     cursor: 'default',
                     opacity: isHidden ? 0 : 1,
-                    transform: isSel ? 'translateY(-8px)' : (isHidden ? 'translateY(20px)' : 'none'),
+                    transform: isSel ? 'translateY(-8px)' : (isHidden ? 'translateY(20px)' : 'translateY(0)'),
                     boxShadow: isSel ? '0 22px 48px rgba(14,43,65,.16)' : '0 1px 2px rgba(14,43,65,.04)',
-                    transition: 'opacity 0.45s cubic-bezier(.22,1,.36,1), transform 0.45s cubic-bezier(.22,1,.36,1), background 0.18s ease, border-color 0.25s ease, box-shadow 0.32s ease',
+                    transition: 'opacity 0.3s cubic-bezier(.22,1,.36,1), transform 0.3s cubic-bezier(.22,1,.36,1), background 0.22s ease, border-color 0.25s ease, box-shadow 0.32s ease',
                   }}
                 >
                   {/* Dot on connector */}
