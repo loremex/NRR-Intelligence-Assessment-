@@ -112,8 +112,8 @@ function AssessmentIntro() {
           50%      { transform: translateY(-4px) }
         }
         @keyframes cardPop {
-          0%   { opacity: 0.5; transform: scale(0.92); }
-          60%  { opacity: 1;   transform: scale(1.06); }
+          0%   { opacity: 0;   transform: scale(0.82); }
+          55%  { opacity: 1;   transform: scale(1.10); }
           100% { opacity: 1;   transform: scale(1.0);  }
         }
         .intro-sweep {
@@ -124,7 +124,11 @@ function AssessmentIntro() {
           opacity: 0;
         }
         .intro-card.card-pop {
-          animation: cardPop 480ms ease-out both;
+          animation-name: cardPop;
+          animation-duration: 650ms;
+          animation-timing-function: ease-out;
+          animation-fill-mode: both;
+          animation-delay: var(--card-delay, 0ms);
         }
         .intro-grid {
           display: grid;
@@ -252,8 +256,8 @@ function AssessmentIntro() {
                     cursor: 'default',
                     boxShadow: isSel ? '0 22px 48px rgba(14,43,65,.16)' : '0 1px 2px rgba(14,43,65,.04)',
                     transition: 'box-shadow .32s ease, border-color .25s ease',
-                    animationDelay: triggered ? `${i * 170}ms` : undefined,
-                  }}
+                    '--card-delay': `${i * 170}ms`,
+                  } as React.CSSProperties}
                 >
                   {/* Dot on connector */}
                   <div
