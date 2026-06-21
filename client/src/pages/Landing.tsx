@@ -54,9 +54,7 @@ function AssessmentIntro() {
   const [hovered, setHovered] = useState<number | null>(null)
   const [swept, setSwept] = useState(false)
   const [dotActive, setDotActive] = useState([false, false, false, false])
-  const [cardPhase, setCardPhase] = useState<Array<'hidden' | 'pulsing' | 'settled'>>([
-    'hidden', 'hidden', 'hidden', 'hidden',
-  ])
+  const [triggered, setTriggered] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -67,28 +65,24 @@ function AssessmentIntro() {
       setShown(true)
       setSwept(true)
       setDotActive([true, true, true, true])
-      setCardPhase(['settled', 'settled', 'settled', 'settled'])
+      setTriggered(true)
       return
     }
+    const fire = () => {
+      console.log('[AssessmentIntro] section in view — triggering card animation')
+      setShown(true)
+      setSwept(true)
+      setTriggered(true)
+      const DOT_DELAYS = [150, 430, 710, 990]
+      DOT_DELAYS.forEach((delay, i) => {
+        setTimeout(() => {
+          setDotActive(prev => { const n = [...prev]; n[i] = true; return n })
+        }, delay)
+      })
+    }
     const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          io.disconnect()
-          setShown(true)
-          setSwept(true)
-          const CARD_DELAYS = [150, 430, 710, 990]
-          CARD_DELAYS.forEach((delay, i) => {
-            setTimeout(() => {
-              setDotActive(prev => { const n = [...prev]; n[i] = true; return n })
-              setCardPhase(prev => { const n = [...prev]; n[i] = 'pulsing'; return n })
-              setTimeout(() => {
-                setCardPhase(prev => { const n = [...prev]; n[i] = 'settled'; return n })
-              }, 380)
-            }, delay)
-          })
-        }
-      },
-      { threshold: 0.1 },
+      (entries) => { if (entries.some((e) => e.isIntersecting)) { io.disconnect(); fire() } },
+      { threshold: 0.15 },
     )
     io.observe(root)
     return () => io.disconnect()
@@ -117,9 +111,20 @@ function AssessmentIntro() {
           0%, 100% { transform: translateY(0) }
           50%      { transform: translateY(-4px) }
         }
+        @keyframes cardPop {
+          0%   { opacity: 0.5; transform: scale(0.92); }
+          60%  { opacity: 1;   transform: scale(1.06); }
+          100% { opacity: 1;   transform: scale(1.0);  }
+        }
         .intro-sweep {
           animation: introSweep 1.4s ease-out forwards;
           transform-origin: left center;
+        }
+        .intro-card {
+          opacity: 0;
+        }
+        .intro-card.card-pop {
+          animation: cardPop 480ms ease-out both;
         }
         .intro-grid {
           display: grid;
@@ -158,6 +163,8 @@ function AssessmentIntro() {
         }
         @media (prefers-reduced-motion: reduce) {
           .intro-sweep { animation: none !important; transform: scaleX(1) !important; }
+          .intro-card  { opacity: 1 !important; }
+          .intro-card.card-pop { animation: none !important; }
           .intro-float, .intro-pulse { animation: none !important; }
         }
       `}</style>
@@ -228,35 +235,24 @@ function AssessmentIntro() {
           {/* Cards */}
           <div className="intro-grid">
             {INTRO_AREAS.map((area, i) => {
-              const phase = cardPhase[i]
-              const isHidden = phase === 'hidden'
-              const isPulsing = phase === 'pulsing'
-              const canHover = phase === 'settled'
-              const isSel = hovered === i && canHover
-
-              const tagColor = isPulsing ? 'rgba(255,255,255,0.85)' : INTRO_ACCENT
-              const iconBg = isPulsing ? 'rgba(255,255,255,0.18)' : (INTRO_ACCENT + '14')
-              const iconColor = isPulsing ? '#FFFFFF' : INTRO_ACCENT
-              const titleColor = isPulsing ? '#FFFFFF' : '#0E2B41'
-              const roleColor = isPulsing ? 'rgba(255,255,255,0.72)' : '#8896A3'
-              const descColor = isPulsing ? 'rgba(255,255,255,0.88)' : '#52606D'
+              const isSel = hovered === i
 
               return (
                 <div
                   key={i}
-                  onMouseEnter={() => { if (canHover) setHovered(i) }}
+                  className={`intro-card${triggered ? ' card-pop' : ''}`}
+                  onMouseEnter={() => setHovered(i)}
                   onMouseLeave={() => setHovered(null)}
                   style={{
                     position: 'relative',
-                    background: isPulsing ? '#2563EB' : '#FFFFFF',
-                    border: `1px solid ${isPulsing ? '#2563EB' : (isSel ? INTRO_ACCENT : '#E3E8EE')}`,
+                    background: '#FFFFFF',
+                    border: `1px solid ${isSel ? INTRO_ACCENT : '#E3E8EE'}`,
                     borderRadius: 16,
                     padding: '26px 24px 28px',
                     cursor: 'default',
-                    opacity: isHidden ? 0 : 1,
-                    transform: isSel ? 'translateY(-8px)' : (isHidden ? 'translateY(20px)' : 'translateY(0)'),
                     boxShadow: isSel ? '0 22px 48px rgba(14,43,65,.16)' : '0 1px 2px rgba(14,43,65,.04)',
-                    transition: 'opacity 0.3s cubic-bezier(.22,1,.36,1), transform 0.3s cubic-bezier(.22,1,.36,1), background 0.22s ease, border-color 0.25s ease, box-shadow 0.32s ease',
+                    transition: 'box-shadow .32s ease, border-color .25s ease',
+                    animationDelay: triggered ? `${i * 170}ms` : undefined,
                   }}
                 >
                   {/* Dot on connector */}
@@ -271,9 +267,8 @@ function AssessmentIntro() {
                   {/* Tag */}
                   <div style={{
                     fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase',
-                    color: tagColor, marginBottom: 16,
+                    color: INTRO_ACCENT, marginBottom: 16,
                     fontFamily: "Georgia, 'Times New Roman', serif",
-                    transition: 'color 0.18s ease',
                   }}>
                     {area.tag}
                   </div>
@@ -283,12 +278,11 @@ function AssessmentIntro() {
                     className={isSel ? 'intro-float' : undefined}
                     style={{
                       width: 44, height: 44, borderRadius: 12,
-                      background: iconBg,
-                      color: iconColor,
+                      background: INTRO_ACCENT + '14',
+                      color: INTRO_ACCENT,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       marginBottom: 16,
                       animation: isSel ? 'introFloat 2.4s ease-in-out infinite' : undefined,
-                      transition: 'background 0.18s ease, color 0.18s ease',
                     }}
                   >
                     {introIcon(area.icon)}
@@ -297,26 +291,23 @@ function AssessmentIntro() {
                   {/* Title */}
                   <div style={{
                     fontFamily: "Georgia, 'Times New Roman', serif",
-                    fontSize: 18, fontWeight: 700, color: titleColor, marginBottom: 4,
-                    transition: 'color 0.18s ease',
+                    fontSize: 18, fontWeight: 700, color: '#0E2B41', marginBottom: 4,
                   }}>
                     {area.title}
                   </div>
 
                   {/* Role */}
                   <div style={{
-                    fontSize: 13, fontWeight: 600, color: roleColor, marginBottom: 12,
+                    fontSize: 13, fontWeight: 600, color: '#8896A3', marginBottom: 12,
                     fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: '.01em',
-                    transition: 'color 0.18s ease',
                   }}>
                     {area.role}
                   </div>
 
                   {/* Description */}
                   <p style={{
-                    margin: 0, fontSize: 14, lineHeight: 1.65, color: descColor,
+                    margin: 0, fontSize: 14, lineHeight: 1.65, color: '#52606D',
                     fontFamily: "Georgia, 'Times New Roman', serif",
-                    transition: 'color 0.18s ease',
                   }}>
                     {area.desc}
                   </p>
