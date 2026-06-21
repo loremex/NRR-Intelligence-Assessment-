@@ -392,16 +392,15 @@ function Landing() {
                 NRR. Measured. Activated.
               </h1>
               <p className="text-slate-300 text-lg sm:text-xl mb-8 leading-relaxed">
-                Most B2B technology companies track NRR. Few have the capability to move it. This
-                diagnostic scores your company across Retention, Expansion, and Pricing
-                Optimization — and tells you exactly where the gap is.
+                NRR is the clearest driver of enterprise value in B2B tech — and the hardest thing
+                to move. This diagnostic measures how far your post-sales engine runs from the
+                frontier across Retention, Expansion, and Pricing, and shows you exactly where the
+                value is leaking.
               </p>
               <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-400 mb-10">
                 <span>8–30 minutes depending on scope</span>
                 <span className="hidden sm:inline text-slate-600">·</span>
                 <span>Scored across 4 capabilities</span>
-                <span className="hidden sm:inline text-slate-600">·</span>
-                <span>Downloadable PDF report</span>
               </div>
               <button
                 onClick={scrollToForm}
