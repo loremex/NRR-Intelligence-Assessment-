@@ -51,41 +51,45 @@ function introIcon(name: string) {
 
 function AssessmentIntro() {
   const [shown, setShown] = useState(false)
+  const [popped, setPopped] = useState(false)
   const [hovered, setHovered] = useState<number | null>(null)
-  const [swept, setSwept] = useState(false)
-  const [dotActive, setDotActive] = useState([false, false, false, false])
-  const [triggered, setTriggered] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const root = rootRef.current
-    if (!root) return
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduced) {
+    let hasShown = false
+    let popTimer: ReturnType<typeof setTimeout> | undefined
+    let io: IntersectionObserver | null = null
+
+    const reveal = () => {
+      if (hasShown) return
+      hasShown = true
       setShown(true)
-      setSwept(true)
-      setDotActive([true, true, true, true])
-      setTriggered(true)
-      return
+      popTimer = setTimeout(() => setPopped(true), 2600)
     }
-    const fire = () => {
-      console.log('[AssessmentIntro] section in view — triggering card animation')
-      setShown(true)
-      setSwept(true)
-      setTriggered(true)
-      const DOT_DELAYS = [150, 430, 710, 990]
-      DOT_DELAYS.forEach((delay, i) => {
-        setTimeout(() => {
-          setDotActive(prev => { const n = [...prev]; n[i] = true; return n })
-        }, delay)
-      })
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      reveal()
+      return () => clearTimeout(popTimer)
     }
-    const io = new IntersectionObserver(
-      (entries) => { if (entries.some((e) => e.isIntersecting)) { io.disconnect(); fire() } },
-      { threshold: 0.15 },
+
+    io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          io!.disconnect()
+          io = null
+          reveal()
+        }
+      },
+      { threshold: 0.1 },
     )
-    io.observe(root)
-    return () => io.disconnect()
+    if (rootRef.current) io.observe(rootRef.current)
+    const fallbackTimer = setTimeout(reveal, 350)
+
+    return () => {
+      io?.disconnect()
+      clearTimeout(popTimer)
+      clearTimeout(fallbackTimer)
+    }
   }, [])
 
   return (
@@ -99,9 +103,11 @@ function AssessmentIntro() {
       }}
     >
       <style>{`
-        @keyframes introSweep {
-          from { transform: scaleX(0); }
-          to   { transform: scaleX(1); }
+        @keyframes introPop {
+          0%   { transform: scale(.2);   }
+          50%  { transform: scale(1.28); }
+          72%  { transform: scale(.94);  }
+          100% { transform: scale(1);    }
         }
         @keyframes introPulse {
           0%, 100% { box-shadow: 0 0 0 0   rgba(37,99,235,.45) }
@@ -110,25 +116,6 @@ function AssessmentIntro() {
         @keyframes introFloat {
           0%, 100% { transform: translateY(0) }
           50%      { transform: translateY(-4px) }
-        }
-        @keyframes cardPop {
-          0%   { opacity: 0;   transform: scale(0.82); }
-          55%  { opacity: 1;   transform: scale(1.10); }
-          100% { opacity: 1;   transform: scale(1.0);  }
-        }
-        .intro-sweep {
-          animation: introSweep 1.4s ease-out forwards;
-          transform-origin: left center;
-        }
-        .intro-card {
-          opacity: 0;
-        }
-        .intro-card.card-pop {
-          animation-name: cardPop;
-          animation-duration: 650ms;
-          animation-timing-function: ease-out;
-          animation-fill-mode: both;
-          animation-delay: var(--card-delay, 0ms);
         }
         .intro-grid {
           display: grid;
@@ -157,6 +144,9 @@ function AssessmentIntro() {
           border-radius: 999px;
           transition: background 0.3s ease;
         }
+        .intro-dot.intro-pulse {
+          animation: introPulse 1.8s ease-in-out infinite;
+        }
         @media (max-width: 860px) {
           .intro-grid { grid-template-columns: repeat(2, 1fr); }
           .intro-connector { display: none; }
@@ -166,9 +156,7 @@ function AssessmentIntro() {
           .intro-grid { grid-template-columns: 1fr; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .intro-sweep { animation: none !important; transform: scaleX(1) !important; }
-          .intro-card  { opacity: 1 !important; }
-          .intro-card.card-pop { animation: none !important; }
+          .intro-anim { animation: none !important; }
           .intro-float, .intro-pulse { animation: none !important; }
         }
       `}</style>
@@ -223,17 +211,18 @@ function AssessmentIntro() {
         {/* Card flow */}
         <div style={{ position: 'relative', marginTop: 56 }}>
 
-          {/* Connector line sweep */}
+          {/* Connector line */}
           <div className="intro-connector">
-            <div
-              className={swept ? 'intro-sweep' : undefined}
-              style={{
-                position: 'absolute', top: 0, height: '100%', width: '100%',
-                background: 'linear-gradient(90deg, #6BA0FF 0%, #93C5FD 100%)',
-                transformOrigin: 'left center',
-                transform: 'scaleX(0)',
-              }}
-            />
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              height: '100%',
+              width: '100%',
+              background: 'linear-gradient(90deg, #6BA0FF 0%, #93C5FD 100%)',
+              transformOrigin: 'left center',
+              transform: shown ? 'scaleX(1)' : 'scaleX(0)',
+              transition: 'transform 1s cubic-bezier(.22,1,.36,1) .15s',
+            }} />
           </div>
 
           {/* Cards */}
@@ -244,7 +233,7 @@ function AssessmentIntro() {
               return (
                 <div
                   key={i}
-                  className={`intro-card${triggered ? ' card-pop' : ''}`}
+                  className="intro-anim"
                   onMouseEnter={() => setHovered(i)}
                   onMouseLeave={() => setHovered(null)}
                   style={{
@@ -256,16 +245,17 @@ function AssessmentIntro() {
                     cursor: 'default',
                     boxShadow: isSel ? '0 22px 48px rgba(14,43,65,.16)' : '0 1px 2px rgba(14,43,65,.04)',
                     transition: 'box-shadow .32s ease, border-color .25s ease',
-                    '--card-delay': `${i * 170}ms`,
-                  } as React.CSSProperties}
+                    opacity: 1,
+                    transformOrigin: 'center center',
+                    animation: (shown && !popped && !isSel)
+                      ? `introPop .8s cubic-bezier(.34,1.56,.64,1) ${0.15 + i * 0.32}s both`
+                      : 'none',
+                  }}
                 >
                   {/* Dot on connector */}
                   <div
                     className={`intro-dot${isSel ? ' intro-pulse' : ''}`}
-                    style={{
-                      background: dotActive[i] ? (isSel ? INTRO_ACCENT : '#6BA0FF') : '#D1D9E0',
-                      animation: isSel ? 'introPulse 1.8s ease-in-out infinite' : undefined,
-                    }}
+                    style={{ background: isSel ? INTRO_ACCENT : shown ? '#6BA0FF' : '#D1D9E0' }}
                   />
 
                   {/* Tag */}
@@ -425,7 +415,7 @@ function Landing() {
                 NRR Intelligence Assessment — Free
               </p>
               <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white mb-6">
-                NRR. Measured. Activated.
+                NRR Intelligence. Activated.
               </h1>
               <p className="text-slate-300 text-lg sm:text-xl mb-8 leading-relaxed">
                 NRR is the clearest driver of enterprise value in B2B tech — and the hardest thing

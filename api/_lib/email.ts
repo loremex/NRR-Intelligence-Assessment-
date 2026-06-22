@@ -159,6 +159,90 @@ export async function sendScorecardEmail(params: SendScorecardEmailParams): Prom
   })
 }
 
+// ─── Lead notification email ─────────────────────────────────────────────────
+
+export interface SendLeadNotificationParams {
+  leadEmail: string
+  overallIntelligence: number | null
+  reportingMaturity: number | null
+  retentionOverall: number | null
+  expansionOverall: number | null
+  pricingOverall: number | null
+  weakestCapability: string | null
+  capabilitiesSelected: string[]
+}
+
+export async function sendLeadNotificationEmail(params: SendLeadNotificationParams): Promise<SendEmailResult> {
+  const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'ls@loremex.ai'
+  const fromName = process.env.RESEND_FROM_NAME ?? 'Loremex Team'
+  const from = `${fromName} <${fromEmail}>`
+
+  const { leadEmail, overallIntelligence, reportingMaturity, retentionOverall, expansionOverall, pricingOverall, weakestCapability, capabilitiesSelected } = params
+  const fmt = (v: number | null) => v !== null ? v.toFixed(2) : '—'
+
+  const scoreRows = [
+    ['Overall Intelligence', fmt(overallIntelligence)],
+    ['NRR Reporting', fmt(reportingMaturity)],
+    ['Retention', fmt(retentionOverall)],
+    ['Expansion', fmt(expansionOverall)],
+    ['Pricing Optimization', fmt(pricingOverall)],
+  ].map(([label, value]) => `
+    <tr>
+      <td style="padding:8px 16px;font-size:13px;color:#1E293B;border-bottom:1px solid #F1F5F9;">${label}</td>
+      <td style="padding:8px 16px;font-size:14px;font-weight:700;color:#002337;text-align:right;border-bottom:1px solid #F1F5F9;">${value}</td>
+    </tr>`).join('')
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:system-ui,-apple-system,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="background:#002337;padding:16px 28px;">
+            <p style="margin:0;font-size:13px;font-weight:700;color:#6BA0FF;letter-spacing:.1em;text-transform:uppercase;">Loremex · Lead Notification</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 28px 24px;">
+            <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#002337;font-family:Georgia,serif;">New Assessment Completed</h1>
+            <p style="margin:0 0 24px;font-size:15px;font-weight:600;color:#2563EB;">${leadEmail}</p>
+
+            <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.08em;">Scores</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border-radius:8px;margin-bottom:20px;border:1px solid #E2E8F0;overflow:hidden;">
+              ${scoreRows}
+            </table>
+
+            ${weakestCapability ? `<p style="margin:0 0 8px;font-size:13px;color:#1E293B;">Weakest area: <strong>${weakestCapability}</strong></p>` : ''}
+            ${capabilitiesSelected.length ? `<p style="margin:0;font-size:13px;color:#64748B;">Capabilities assessed: ${capabilitiesSelected.join(', ')}</p>` : ''}
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+  return withRetry(async () => {
+    const resend = getResend()
+    const result = await resend.emails.send({
+      from,
+      to: 'ls@loremex.com',
+      subject: `New NRR Assessment lead: ${leadEmail}`,
+      html,
+    })
+
+    if (result.error) {
+      const err = result.error as { statusCode?: number; message?: string }
+      const error = Object.assign(new Error(err.message ?? 'Resend error'), { statusCode: err.statusCode })
+      throw error
+    }
+
+    return { messageId: result.data?.id ?? null, success: true }
+  })
+}
+
 // ─── Diagnostic email ─────────────────────────────────────────────────────────
 
 export interface DiagnosticAnswerData {
