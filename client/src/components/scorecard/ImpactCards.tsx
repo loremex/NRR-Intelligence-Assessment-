@@ -32,6 +32,11 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
 
   return (
     <div data-reveal="impact" style={{ marginTop: 30 }}>
+      <style>{`
+        @media (max-width: 640px) {
+          .impact-cols { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
       <div style={{
         fontFamily: 'Georgia, serif',
         fontSize: 11,
@@ -44,7 +49,7 @@ export function ImpactCards({ pooledTop3, allQuestionTitleById }: ImpactCardsPro
         3 highest-impact areas to address
       </div>
 
-      <div style={{
+      <div className="impact-cols" style={{
         display: 'grid',
         gridTemplateColumns: isSplit ? '1fr 1fr' : '1fr',
         gap: 14,

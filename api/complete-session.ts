@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { updateContactWithScorecard, type ScorecardData } from './_lib/hubspot'
-import { sendScorecardEmail } from './_lib/email'
+import { sendScorecardEmail, sendLeadNotificationEmail } from './_lib/email'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,15 +76,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     recommendationSentences: scorecard.recommendationSentences ?? [],
   }
 
-  // Run HubSpot + email in parallel. On failure: log and continue — user is not blocked.
+  // Run HubSpot + emails in parallel. On failure: log and continue — user is not blocked.
   // NOTE: Serverless functions are stateless; the disk-backed retry queue from server/
   // is not available here. Failures are logged to Vercel logs for manual follow-up.
   // Revisit with Upstash QStash in v1.1 if volume warrants.
-  const [hubspotResult, emailResult] = await Promise.allSettled([
+  const [hubspotResult, emailResult, notifResult] = await Promise.allSettled([
     contactId
       ? updateContactWithScorecard(contactId, scorecardData)
       : Promise.reject(new Error('No contactId — cannot update HubSpot')),
     sendScorecardEmail({ to: email, pdfBase64, scorecardSummary }),
+    sendLeadNotificationEmail({
+      leadEmail: email,
+      overallIntelligence: scorecard.overallIntelligence,
+      reportingMaturity: scorecard.reportingMaturity,
+      retentionOverall: scorecard.capabilityOveralls?.retention ?? null,
+      expansionOverall: scorecard.capabilityOveralls?.expansion ?? null,
+      pricingOverall: scorecard.capabilityOveralls?.pricing ?? null,
+      weakestCapability: scorecard.weakestCapability,
+      capabilitiesSelected: scorecard.capabilitiesSelected ?? [],
+    }),
   ])
 
   const hubspotUpdated = hubspotResult.status === 'fulfilled'
@@ -102,6 +112,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (emailResult.status === 'rejected' || !emailSent) {
     const reason = emailResult.status === 'rejected' ? emailResult.reason : 'send returned success=false'
     console.error('[complete-session] Email send failed:', reason, { email, completedAt })
+  }
+
+  if (notifResult.status === 'rejected') {
+    console.error('[complete-session] Lead notification failed:', notifResult.reason, { email })
   }
 
   return res.json({ hubspotUpdated, emailSent })

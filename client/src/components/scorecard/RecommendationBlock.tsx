@@ -24,7 +24,17 @@ export function RecommendationBlock({
 
   return (
     <div data-reveal="rec" style={{ marginTop: 36, position: 'relative' }}>
+      <style>{`
+        @media (max-width: 640px) {
+          .rec-inner { padding: 24px 20px !important; }
+          .rec-cols  { grid-template-columns: 1fr !important; gap: 28px !important; }
+          .matrix-row { grid-template-columns: 88px repeat(5, 1fr) !important; }
+          .matrix-cell { height: 34px !important; }
+          .matrix-label { font-size: 11px !important; }
+        }
+      `}</style>
       <div
+        className="rec-inner"
         style={{
           background: '#0E2B41',
           borderRadius: 16,
@@ -49,7 +59,7 @@ export function RecommendationBlock({
         />
 
         {/* Two-column grid */}
-        <div style={{
+        <div className="rec-cols" style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: 36,
@@ -94,7 +104,7 @@ export function RecommendationBlock({
             </div>
 
             {/* Column headers */}
-            <div style={{ display: 'grid', gridTemplateColumns: '116px repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
+            <div className="matrix-row" style={{ display: 'grid', gridTemplateColumns: '116px repeat(5, 1fr)', gap: 6, marginBottom: 10 }}>
               <div />
               {[1, 2, 3, 4, 5].map((l) => (
                 <div key={l} style={{
@@ -117,15 +127,15 @@ export function RecommendationBlock({
                   : null
 
                 return (
-                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '116px repeat(5, 1fr)', gap: 6, alignItems: 'center' }}>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,.60)', paddingRight: 8, lineHeight: 1.3 }}>
+                  <div key={key} className="matrix-row" style={{ display: 'grid', gridTemplateColumns: '116px repeat(5, 1fr)', gap: 6, alignItems: 'center' }}>
+                    <div className="matrix-label" style={{ fontSize: 13, color: 'rgba(255,255,255,.60)', paddingRight: 8, lineHeight: 1.3 }}>
                       {shortName}
                     </div>
                     {[1, 2, 3, 4, 5].map((l) => {
                       const isCurrent = l === level
                       const isFrontier = l === 5
                       return (
-                        <div key={l} style={{
+                        <div key={l} className="matrix-cell" style={{
                           height: 40,
                           borderRadius: 6,
                           background: isCurrent
